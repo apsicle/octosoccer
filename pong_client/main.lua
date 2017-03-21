@@ -1,20 +1,32 @@
-package.path = package.path .. ";libraries/?.lua"
-sock = require "sock"
-bitser = require "bitser"
-require "scripts"
+--package.path = package.path .. ";libraries/?.lua"
+sock = require "libraries/sock"
+bitser = require "libraries/bitser"
+require "libraries/scripts"
 
-package.path = package.path .. ";classes/?.lua"
-require "Ball"
-require "Player"
-Menu = require "Menu"
+--package.path = package.path .. ";classes/?.lua"
+require "classes/Ball"
+require "classes/Player"
+Menu = require "classes/Menu"
 
 function love.load()
     -- how often an update is sent out
     tickRate = 1/60
     tick = 0
+    time = {ballState = 0, playerState = 0}
+
+    -- define globals
+    global_width = love.graphics.getWidth()
+    global_height = love.graphics.getHeight()
+    global_obj_array = {}
+    global_obj_pointer = 1
+
+    --client keeps track of players
+    local marginX = 50
+
+    scores = {0, 0}
 
     -- new Client. This has listeners
-    client = sock.newClient("localhost", 22122)
+    client = sock.newClient("192.168.0.103", 22122)
     client:setSerialization(bitser.dumps, bitser.loads)
 
     -- store the client's index
@@ -24,39 +36,65 @@ function love.load()
         playerNumber = num
     end)
 
-    -- receive player list on connection
+    -- receive player list on connection.
+    -- players are populated and your player is set to active.
     client:on("playerList", function(playerList)
         players = {}
+        print_table(playerList)
         for i, playerState in ipairs(playerList) do
             players[i] = Player.new()
+            players[i]:setState(playerState)
+            players[i].id = i
             if i == playerNumber then
-                players[i]:setState(playerState)
                 players[i].active = true
             end
         end
     end)
 
     -- receive info on where the players are located
-    client:on("playerState", function(data)
-        local index = data.index
-        local playerState = data.playerState
+    client:on("stateUpdate", function(data)
+        -- only take the most recent update
+        if data.time >= time.ballState and data.time >= time.playerState then
+            -- perform the right update
+            if data.eventType == "playerState" then
+                local index = data.index
+                local playerState = data.playerState
 
-        -- only accept updates for the other player
-        if playerNumber and index ~= playerNumber then
-            if players[index] ~= nil then
-                players[index]:setState(playerState)
-            else
-                players[index] = Player.new()
-                players[index]:setState(playerState)
+                -- only accept updates for the other player
+                if playerNumber and index ~= playerNumber then
+                    if players[index] ~= nil then
+                        players[index]:setState(playerState)
+                    else
+                        players[index] = Player.new()
+                        players[index]:setState(playerState)
+                    end
+                end
+                time.playerState = data.time
+            elseif data.eventType == "ballState" then
+                local ballState = data.ballState
+
+                if ball then
+                    ball:setState(ballState)    
+                else
+                    ball = Ball.new()
+                    ball:setState(ballState)
+                end
+                time.ballState = data.time
             end
+            
         end
     end)
 
-    client:on("ballState", function(data)
-        ball.x = data.x
-        ball.y = data.y
+    client:on("removePlayer", function(index)
+        if players[index].hasBall then
+            global_obj_array[players[index].global_index] = nil
+            players[index] = nil
+            ball.owner = nil
+        else
+            players[index] = nil
+        end
     end)
-
+    
     client:on("scores", function(data)
         scores = data
     end)
@@ -132,17 +170,7 @@ function love.load()
         }
 
 
-    global_width = love.graphics.getWidth()
-    global_height = love.graphics.getHeight()
-    global_obj_array = {}
-    global_obj_pointer = 1
 
-    ball = Ball.new()
-
-    --client keeps track of players
-    local marginX = 50
-
-    scores = {0, 0}
 
     --ball = newBall(love.graphics.getWidth()/2, love.graphics.getHeight()/2)
     
@@ -176,9 +204,6 @@ function love.update(dt)
             --local playerY = mouseY - players[playerNumber].h/2
 
             -- Update our own player position and send it to the server
-            print_table(players)
-            print(playerNumber)
-            print("this is", client:getIndex())
             client:send("clientPlayerState", players[playerNumber]:getState())
         end
     end

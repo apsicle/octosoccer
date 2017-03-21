@@ -37,8 +37,10 @@ function Player.new (x, y, N, collision_group, active)
 
 	-- SPRITES / ANIMATIONS
 	player.sprite = love.graphics.newImage("sprites/octopus.png")
-	player.x_offset = player.sprite:getHeight() / 2
-	player.y_offset = player.sprite:getHeight() / 2
+	player.x_scale = 0.5
+	player.y_scale = 0.5
+	player.x_offset = (player.sprite:getHeight() / 2)
+	player.y_offset = (player.sprite:getHeight() / 2)
 
 	player.global_index = add_object(global_obj_array, global_obj_pointer, player)
 
@@ -94,7 +96,7 @@ end
 function Player:draw(i) 
 	
 	if i == 3 then
-		love.graphics.draw(self.sprite, self.x, self.y, 0, 0.5, 0.5, self.x_offset*0.5, self.y_offset*0.5)
+		love.graphics.draw(self.sprite, self.x, self.y, 0, self.x_scale, self.y_scale, self.x_offset, self.y_offset)
 	end
 end
 
@@ -107,9 +109,6 @@ function Player:resolve_collision(collider)
 end
 
 function love.keyreleased(key) 
-	if key == "up" or key == "down" or key == "left" or key == "right" then
-		self.state = "standing"
-	end
 end
 
 function Player:setDestination(x, y)
@@ -121,8 +120,10 @@ function Player:setState(playerState)
 	self.x = playerState.x
 	self.y = playerState.y
 	self.destination = playerState.destination
+	self.hasBall = playerState.hasBall
+
 end
 
 function Player:getState()
-	return {x = self.x, y = self.y, destination = self.destination}
+	return {x = self.x, y = self.y, destination = self.destination, hasBall = self.hasBall}
 end

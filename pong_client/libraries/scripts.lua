@@ -50,6 +50,7 @@ function circle_cast(self, collision_func, return_objs)
 	--Check if you really did collide with them
 	for key, value in pairs(collidable_objs, value) do
 		if collision_func(self, value) then
+
 			if return_objs == true then
 				table.insert(collided_objs, value)
 			else
@@ -229,6 +230,7 @@ function place_player()
 end
 
 function print_table(table)
+	print("PRINTING - ", table)
 	for i, v in pairs(table) do
 		print(i, v)
 	end

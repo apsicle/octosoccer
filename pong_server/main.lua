@@ -8,7 +8,6 @@ require "Ball"
 require "Player"
 menu = require "Menu"
 
-
 -- Utility functions
 function isColliding(this, other)
     return  this.x < other.x + other.w and
@@ -20,10 +19,25 @@ end
 function love.load()
     -- how often an update is sent out
     tickRate = 1/60
+    time = 0
     tick = 0
 
+    -- define globals
+    local marginX = 50
+
+    scores = {0, 0}
+
+    global_width = love.graphics.getWidth()
+    global_height = love.graphics.getHeight()
+    global_obj_array = {}
+    global_obj_pointer = 1
+
+    ball = Ball.new()
+    players = {
+    }
+
     -- %% Server on any IP, port 22122, with 2 max peers
-    server = sock.newServer("*", 22122, 2)
+    server = sock.newServer("192.168.0.103", 22122, 2)
     -- %% Assign bitser as serialization and deserialization functions (dumps and loads respectively)
     server:setSerialization(bitser.dumps, bitser.loads)
 
@@ -32,11 +46,28 @@ function love.load()
     -- %% server:on(event, callback)
     server:on("connect", function(data, client)
         -- tell the peer what their index is
-        client:send("playerNum", client:getIndex())
-        players[client:getIndex()] = Player.new()
+        local index = client:getIndex()
+        client:send("playerNum", index)
+        players[index] = Player.new()
+        players[index].id = index
         server:sendToAll("playerList", map(function(a) return a:getState() end, players))
     end)
 
+    server:on("disconnect", function(data, client)
+        -- remove the player from the players
+        print("DISCONNECTING")
+        print_table(players)
+        local index = client:getIndex()
+
+        if players[index].hasBall then
+            global_obj_array[players[index].global_index] = nil
+            players[index] = nil
+            ball.owner = nil
+        else
+            players[index] = nil
+        end
+        server:sendToAll("removePlayer", index)
+    end)
     -- receive info on where a player is located
     server:on("clientPlayerState", function(clientPlayerState, client)
         local index = client:getIndex()
@@ -72,21 +103,6 @@ function love.load()
             h = 15,
         }
     end
-
-    local marginX = 50
-
-  
-
-    scores = {0, 0}
-
-    global_width = love.graphics.getWidth()
-    global_height = love.graphics.getHeight()
-    global_obj_array = {}
-    global_obj_pointer = 1
-
-    ball = Ball.new()
-    players = {
-    }
 end
 
 function love.update(dt)
@@ -102,15 +118,17 @@ function love.update(dt)
 
     -- Left/Right bounds
     tick = tick + dt
+    time = time + dt
 
     if tick >= tickRate then
         tick = 0
 
         for i, player in pairs(players) do
-            server:sendToAll("playerState", {index = i, playerState = player:getState()})
+            server:sendToAll("stateUpdate", {time = time, index = i, eventType = "playerState", playerState = player:getState()})
         end
 
-        server:sendToAll("ballState", {x = ball.x, y = ball.y})
+        server:sendToAll("stateUpdate", {time = time, eventType = "ballState", ballState = ball:getState()})
+        print(#server.peers)
     end
 end
 
@@ -126,8 +144,10 @@ end
 -- Unique loop functions
 function draw_objects()
     for i = 1, 4, 1 do
-        for key, value in pairs(global_obj_array) do    
+        for key, value in pairs(global_obj_array) do 
+            love.graphics.setColor(255,255,255)   
             value:draw(i)
+            love.graphics.setColor(255,0,0)
             love.graphics.ellipse('line', value.x, value.y, value.radius, value.radius)
         end
     end

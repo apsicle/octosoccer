@@ -21,9 +21,10 @@ function Ball.new ()
 
 	-- SPRITES / ANIMATIONS
 	ball.sprite = love.graphics.newImage("sprites/ball.png")
-	ball.x_offset = ball.sprite:getHeight() / 2
-	ball.y_offset = ball.sprite:getHeight() / 2
-
+	ball.x_scale = 0.025
+	ball.y_scale = 0.025
+	ball.x_offset = (ball.sprite:getHeight() / 2)
+	ball.y_offset = (ball.sprite:getHeight() / 2)
 	ball.global_index = add_object(global_obj_array, global_obj_pointer, ball)
 
 	return ball
@@ -38,8 +39,7 @@ function Ball:move()
 	if self.owner ~= nil then
 		self.x = self.owner.x
 		self.y = self.owner.y
-	end
-	if self.destination.x == x and ball.destination.y == nil then
+	elseif self.destination.x == nil and ball.destination.y == nil then
 		return
 	else
 		move_constant_speed(self, self.destination.x, self.destination.y, self.speed)
@@ -47,7 +47,8 @@ function Ball:move()
 end
 
 function Ball:draw()
-	love.graphics.draw(self.sprite, self.x, self.y, 0, 0.025, 0.025, self.x_offset * 0.025, self.y_offset * 0.025)
+	love.graphics.draw(self.sprite, self.x, self.y, 0, self.x_scale, self.y_scale, self.x_offset, self.y_offset)
+	love.graphics.print(self.x_offset * 0.025, 45)
 end
 
 function Ball:check_collisions()
@@ -67,4 +68,23 @@ end
 function Ball:setDestination(x, y)
 	self.destination.x = x
 	self.destination.y = y
+end
+
+function Ball:setState(ballState)
+	self.x = ballState.x
+	self.y = ballState.y
+	self.ownerId = ballState.ownerId
+	if self.ownerId ~= nil then
+		self.owner = players[self.ownerId]
+	else
+		self.owner = nil
+	end
+end
+
+function Ball:getState()
+	if owner == nil then
+		return {x = self.x, y = self.y, ownerId = nil}
+	else
+		return {x = self.x, y = self.y, ownerId = self.owner.id}
+	end
 end

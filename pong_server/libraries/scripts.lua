@@ -229,6 +229,7 @@ function place_player()
 end
 
 function print_table(table)
+	print("PRINTING - ", table)
 	for i, v in pairs(table) do
 		print(i, v)
 	end
