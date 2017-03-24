@@ -64,6 +64,7 @@ function love.load()
             players[index] = nil
             ball.owner = nil
         else
+            global_obj_array[players[index].global_index] = nil
             players[index] = nil
         end
         server:sendToAll("removePlayer", index)
@@ -75,9 +76,20 @@ function love.load()
     end)
 
     server:on("shoot", function(data)
+        -- acceleration is the frictional force, opposes motion
+        local acceleration = -75
         ball.speed = data.speed
-        ball.destination.x = data.x
-        ball.destination.y = data.y
+        local x_dist = data.x - ball.x
+        local y_dist = data.y - ball.y
+        local angle = math.atan2(y_dist, x_dist)
+        local x_factor = math.cos(angle)
+        local y_factor = math.sin(angle)
+        local t = math.abs(data.speed / (acceleration))
+        ball.vx = x_factor * data.speed
+        ball.vy = y_factor * data.speed
+        ball.ax = x_factor * acceleration
+        ball.ay = y_factor * acceleration
+        ball.t = t
         ball.owner = nil
     end)
 
@@ -113,8 +125,8 @@ function love.update(dt)
     if not enoughPlayers then return end
 
     -- Update moving objects
-    update_objects();
-    move_objects();
+    update_objects(dt);
+    move_objects(dt);
 
     -- Left/Right bounds
     tick = tick + dt
@@ -128,7 +140,7 @@ function love.update(dt)
         end
 
         server:sendToAll("stateUpdate", {time = time, eventType = "ballState", ballState = ball:getState()})
-        print(#server.peers)
+        
     end
 end
 
@@ -138,7 +150,13 @@ function love.draw()
     love.graphics.setColor(255,255,255)
 
     local score = ("%d - %d"):format(scores[1], scores[2])
+    local clients = ("# Clients: %d"):format(#server.clients)
+    local players = ("# Players: %d"):format(#players)
+    local objects = ("# Objects: %d"):format(#global_obj_array)
     love.graphics.print(score, 5, 5)
+    love.graphics.print(clients, 5, 65)
+    love.graphics.print(players, 5, 85)
+    love.graphics.print(objects, 5, 105)
 end
 
 -- Unique loop functions
@@ -153,28 +171,50 @@ function draw_objects()
     end
 end
 
-function move_objects()
+function move_objects(dt)
     for key, value in pairs(global_obj_array) do
-        value:move()
-        if value.x > global_width - 32 then
-        value.x = global_width - 32
-        end
-        if value.y > global_height - 32 then
-            value.y = global_height - 32
-        end
-        if value.x < 0 + 32 then
-            value.x = 0 + 32
-        end
-        if value.y < 0 + 32 then
-            value.y = 0 + 32
+        value:move(dt)
+
+        -- if it's not the ball, just move it back into boundaries
+        if value.isBall == nil then
+            if value.x > global_width - 32 then
+                value.x = global_width - 32
+            end
+            if value.y > global_height - 32 then
+                value.y = global_height - 32
+            end
+            if value.x < 0 + 32 then
+                value.x = 0 + 32
+            end
+            if value.y < 0 + 32 then
+                value.y = 0 + 32
+            end
+        -- if it is the ball, make it bounce off the walls
+        else
+            if value.x > global_width - 32 then
+                value.vx = value.vx * -1
+                value.ax = value.ax * -1
+            end
+            if value.y > global_height - 32 then
+                value.vy = value.vy * -1
+                value.ay = value.ay * -1
+            end
+            if value.x < 0 + 32 then
+                value.vx = value.vx * -1
+                value.ax = value.ax * -1
+            end
+            if value.y < 0 + 32 then
+                value.vy = value.vy * -1
+                value.ay = value.ay * -1
+            end
         end
     end
     --don't let objects move beyond walls
     
 end
     
-function update_objects()
+function update_objects(dt)
     for key, value in pairs(global_obj_array) do
-        value:update()
+        value:update(dt)
     end
 end

@@ -8,15 +8,17 @@ function Ball.new ()
 	ball.vx = 0
 	ball.vy = 0
 	ball.radius = 5;
-	ball.ax = 0
-	ball.ay = 0
+	ball.ax = 0;
+	ball.ay = 0;
 	ball.speed = 0
+	ball.t = 0
 	ball.angle = 0;
 	ball.owner = nil;
 	ball.z_index = 2;
-	ball.cooldown = 60;
+	ball.cooldown = 1;
 	ball.destination = {x = nil, y = nil}
 	ball.collision_group = 1
+	ball.isBall = true
 
 
 	-- SPRITES / ANIMATIONS
@@ -25,30 +27,39 @@ function Ball.new ()
 	ball.y_scale = 0.025
 	ball.x_offset = (ball.sprite:getHeight() / 2)
 	ball.y_offset = (ball.sprite:getHeight() / 2)
+
 	ball.global_index = add_object(global_obj_array, global_obj_pointer, ball)
 
 	return ball
 end
 
-function Ball:update()
-	self.cooldown = self.cooldown - 1;
+function Ball:update(dt)
+	self.cooldown = self.cooldown - dt;
 	self:check_collisions()
 end
 
-function Ball:move()
+function Ball:move(dt)
+	-- if has an owner, then move along with owner
 	if self.owner ~= nil then
 		self.x = self.owner.x
 		self.y = self.owner.y
-	elseif self.destination.x == nil and ball.destination.y == nil then
-		return
+	-- else if has a specific destination, go towards there
+	elseif self.destination.x ~= nil and ball.destination.y ~= nil then
+		move_constant_speed(self, self.x, self.y, self.speed)
+	-- else follow built-in physics
 	else
-		move_constant_speed(self, self.destination.x, self.destination.y, self.speed)
+		if self.t > 0 then
+			self.x = self.x + self.vx * dt
+			self.y = self.y + self.vy * dt
+			self.vx = self.vx + self.ax * dt
+			self.vy = self.vy + self.ay * dt
+			self.t = self.t - dt
+		end
 	end
 end
 
 function Ball:draw()
 	love.graphics.draw(self.sprite, self.x, self.y, 0, self.x_scale, self.y_scale, self.x_offset, self.y_offset)
-	love.graphics.print(self.x_offset * 0.025, 45)
 end
 
 function Ball:check_collisions()
@@ -60,7 +71,13 @@ function Ball:resolve_collision(collider)
 		if self.cooldown <= 0 then
 			collider.hasBall = true
 			self.owner = collider
-			self.cooldown = 60
+			self.x = collider.x
+			self.y = collider.y
+			self.cooldown = 1
+			self.vx = 0
+			self.vy = 0
+			self.ax = 0
+			self.ay = 0
 		end
 	end
 end

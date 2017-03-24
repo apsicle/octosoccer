@@ -8,15 +8,13 @@
 
 Player = {}
 
-function Player.new (x, y, N, collision_group, active) 
+function Player.new (x, y, collision_group, active) 
 	player = {}
 	setmetatable(player, {__index = Player})
 	player.x = x or love.graphics.getWidth() / 2
 	player.y = y or love.graphics.getHeight() / 2
-	player.N = N or 4
 	player.radius = 16;
 	player.speed = 3.5;
-	player.damage = 0;
 	player.angle = 0;
 	player.z_index = 2;
 	player.destination = {x = nil, y = nil}
@@ -28,20 +26,13 @@ function Player.new (x, y, N, collision_group, active)
 	player.hasBall = false
 	player.collision_group = 1
 
-	-- HUD status
-	player.hp = 5
-	player.max_hp = 5
-	player.mp = {11, 11, 0, 0}
-	player.max_mp = 100
-	-- red, blue, green, purple
-
 	-- SPRITES / ANIMATIONS
 	player.sprite = love.graphics.newImage("sprites/octopus.png")
 	player.x_scale = 0.5
 	player.y_scale = 0.5
 	player.x_offset = (player.sprite:getHeight() / 2)
 	player.y_offset = (player.sprite:getHeight() / 2)
-
+	
 	player.global_index = add_object(global_obj_array, global_obj_pointer, player)
 
 	return player
@@ -53,14 +44,15 @@ function Player:shoot()
 			mouse_x = love.mouse.getX()
 			mouse_y = love.mouse.getY()
 			ball:setDestination(mouse_x, mouse_y)
-			ball.speed = 6
-			ball.cooldown = 60
+			ball.speed = 250
+			ball.cooldown = 1
 			self.shooting = false
+			self.hasBall = false
 		end
 	end
 end
 
-function Player:update()
+function Player:update(dt)
 	if self.active == true then
 		--print_table(self.status:get_status('invincible'))
 		if love.mouse.isDown(2) then
@@ -68,7 +60,7 @@ function Player:update()
 			mouse_y = love.mouse.getY()
 			self:setDestination(mouse_x, mouse_y)
 		end
-		if love.keypressed('q') then
+		if love.keyboard.isDown('q') then
 			self.shooting = true
 		end
 		if self.shooting == true then
@@ -79,7 +71,7 @@ function Player:update()
 	end
 end
 
-function Player:move()
+function Player:move(dt)
 
 	-- Player controls. I figure I'll just put this on the first layer, ie. in update, so there's the least overhead as possible?
 	-- Movement:

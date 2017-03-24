@@ -91,6 +91,7 @@ function love.load()
             players[index] = nil
             ball.owner = nil
         else
+            global_obj_array[players[index].global_index] = nil
             players[index] = nil
         end
     end)
@@ -199,8 +200,8 @@ function love.update(dt)
 
         if playerNumber then
             local mouseY = love.mouse.getY()
-            update_objects();
-            move_objects();
+            update_objects(dt);
+            move_objects(dt);
             --local playerY = mouseY - players[playerNumber].h/2
 
             -- Update our own player position and send it to the server
@@ -259,28 +260,48 @@ function draw_objects()
     end
 end
 
-function move_objects()
+function move_objects(dt)
     for key, value in pairs(global_obj_array) do
-        value:move()
-        if value.x > global_width - 32 then
-        value.x = global_width - 32
-        end
-        if value.y > global_height - 32 then
-            value.y = global_height - 32
-        end
-        if value.x < 0 + 32 then
-            value.x = 0 + 32
-        end
-        if value.y < 0 + 32 then
-            value.y = 0 + 32
+        value:move(dt)
+
+        -- if it's not the ball, just move it back into boundaries
+        if value.isBall == nil then
+            if value.x > global_width - 32 then
+                value.x = global_width - 32
+            end
+            if value.y > global_height - 32 then
+                value.y = global_height - 32
+            end
+            if value.x < 0 + 32 then
+                value.x = 0 + 32
+            end
+            if value.y < 0 + 32 then
+                value.y = 0 + 32
+            end
+        -- if it is the ball, make it bounce off the walls
+        else
+            if value.x > global_width - 32 then
+                value.vx = value.vx * -1
+                value.ax = value.ax * -1
+            end
+            if value.y > global_height - 32 then
+                value.vy = value.vy * -1
+                value.ay = value.ay * -1
+            end
+            if value.x < 0 + 32 then
+                value.vx = value.vx * -1
+                value.ax = value.ax * -1
+            end
+            if value.y < 0 + 32 then
+                value.vy = value.vy * -1
+                value.ay = value.ay * -1
+            end
         end
     end
-    --don't let objects move beyond walls
-    
 end
     
-function update_objects()
+function update_objects(dt)
     for key, value in pairs(global_obj_array) do
-        value:update()
+        value:update(dt)
     end
 end
