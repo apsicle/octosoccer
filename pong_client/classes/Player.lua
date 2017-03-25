@@ -41,14 +41,15 @@ end
 function Player:shoot()
 	if self.hasBall then
 		if self.shooting then
-			mouse_x = love.mouse.getX()
-			mouse_y = love.mouse.getY()
+			mouse_x = camera:getMouseX()
+			mouse_y = camera:getMouseY()
 			ball:setDestination(mouse_x, mouse_y)
 			ball.speed = 250
 			ball.cooldown = 1
 			ball.owner = nil
 			self.shooting = false
 			self.hasBall = false
+			pass1:play()
 			client:send("shoot", {speed = ball.speed, x = mouse_x, y = mouse_y})
 		end
 	end
@@ -58,8 +59,8 @@ function Player:update(dt)
 	if self.active == true then
 		--print_table(self.status:get_status('invincible'))
 		if love.mouse.isDown(2) then
-			mouse_x = love.mouse.getX()
-			mouse_y = love.mouse.getY()
+			mouse_x = camera:getMouseX()
+			mouse_y = camera:getMouseY()
 			self:setDestination(mouse_x, mouse_y)
 		end
 		if love.keyboard.isDown('q') then

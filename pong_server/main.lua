@@ -7,6 +7,7 @@ package.path = package.path .. ";classes/?.lua"
 require "Ball"
 require "Player"
 menu = require "Menu"
+require "Camera"
 
 -- Utility functions
 function isColliding(this, other)
@@ -24,13 +25,11 @@ function love.load()
 
     -- define globals
     local marginX = 50
-
     scores = {0, 0}
-
-    global_width = love.graphics.getWidth()
-    global_height = love.graphics.getHeight()
     global_obj_array = {}
     global_obj_pointer = 1
+    window_width = love.graphics.getWidth()
+    window_height = love.graphics.getHeight()
 
     ball = Ball.new()
     players = {
@@ -93,33 +92,17 @@ function love.load()
         ball.owner = nil
     end)
 
-    --server:on("playerDestination", function(playerDestination, client))
+    -- Setup Visuals
+    field = love.graphics.newImage("sprites/field.png")
+    camera = Camera.new()
+    global_width = field:getWidth()
+    global_height = field:getHeight()
 
-
-    function newPlayer(x, y)
-        return {
-            x = x,
-            y = y,
-            w = 20,
-            h = 100,
-        }
-    end
-
-    function newBall(x, y)
-        return {
-            x = x,
-            y = y,
-            vx = 150,
-            vy = 150,
-            w = 15,
-            h = 15,
-        }
-    end
 end
 
 function love.update(dt)
     server:update()
-
+    camera:update(dt)
     -- wait until 2 players connect to start playing
     local enoughPlayers = #server.clients >= 1
     if not enoughPlayers then return end
@@ -145,8 +128,10 @@ function love.update(dt)
 end
 
 function love.draw()
+    camera:set()
+    draw_field();
     draw_objects();
-
+    camera:unset();
     love.graphics.setColor(255,255,255)
 
     local score = ("%d - %d"):format(scores[1], scores[2])
@@ -217,4 +202,11 @@ function update_objects(dt)
     for key, value in pairs(global_obj_array) do
         value:update(dt)
     end
+end
+
+function draw_field()
+    local num_cols = 20
+    local col_width = global_width / num_cols
+    local col_height = global_height * .9
+    love.graphics.draw(field, 0, 0)
 end

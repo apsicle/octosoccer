@@ -7,6 +7,7 @@ require "libraries/scripts"
 require "classes/Ball"
 require "classes/Player"
 Menu = require "classes/Menu"
+require "classes/Camera"
 
 function love.load()
     -- how often an update is sent out
@@ -14,15 +15,9 @@ function love.load()
     tick = 0
     time = {ballState = 0, playerState = 0}
 
-    -- define globals
-    global_width = love.graphics.getWidth()
-    global_height = love.graphics.getHeight()
     global_obj_array = {}
     global_obj_pointer = 1
-
-    --client keeps track of players
     local marginX = 50
-
     scores = {0, 0}
 
     -- new Client. This has listeners
@@ -102,6 +97,7 @@ function love.load()
 
     client:connect()
 
+-- Audio Setup
     music_src1 = love.audio.newSource("audio/hey_ya.mp3")
     music_src1:setVolume(0.3)
     music_src1:play()
@@ -109,16 +105,28 @@ function love.load()
     music_src2 = love.audio.newSource("audio/ada.mp3")
     music_src2:setVolume(0.3)
 
+    pass1 = love.audio.newSource("audio/pass.ogg")
+    pass1:setVolume(1.2)
+
+-- Visuals Setup
+    field = love.graphics.newImage("sprites/field.png")
+    camera = Camera.new()
+    global_width = field:getWidth()
+    global_height = field:getHeight()
+    window_width = love.graphics.getWidth()
+    window_height = love.graphics.getHeight()
+
+
 -- Menu Setup
     paused = true
-    options = {debug = false}
+    options = {debug = false, windowed = true}
     main_menu = Menu.new()
         main_menu:addItem{
             name = 'Start Game',
             action = function()
                 paused = false
                 music_src1:pause()
-                music_src2:play()
+                --music_src2:play()
             end
         }
         main_menu:addItem{
@@ -145,8 +153,24 @@ function love.load()
         }
         options_menu:addItem{
             name = 'Controls',
-            actions = function()
+            action = function()
                 active_menu = controls_menu
+            end
+        }
+        options_menu:addItem{
+            name = 'Switch windowed mode',
+            action = function()
+                if options.windowed then
+                    love.window.setMode(0, 0, {fullscreen = true})
+                    options.windowed = false
+                    window_width = love.graphics.getWidth()
+                    window_height = love.graphics.getHeight()
+                else
+                    love.window.setMode(800, 600, {fullscreen = false})
+                    options.windowed = true
+                    window_width = love.graphics.getWidth()
+                    window_height = love.graphics.getHeight()
+                end
             end
         }
 
@@ -170,39 +194,28 @@ function love.load()
             name = 'Jump up a long way then fall down - R'
         }
 
-
-
-
     --ball = newBall(love.graphics.getWidth()/2, love.graphics.getHeight()/2)
-    
 end
 
 function love.update(dt)
-    -- do all client event triggers
-    client:update()
-    
-    if client:getState() == "connected" then
-        tick = tick + dt
+    -- if paused, just update the menu
+    if paused == true then
+        active_menu:update(dt)
+    else
+        -- update client info... check for connection
+        client:update()
+        camera:update(dt)
 
-        -- simulate the ball locally, and receive corrections from the server
-        if paused == true then 
-            active_menu:update(10)
-        else
-            --Prevent things from moving out of the room
-            -- Update moving objects
-            
+        if client:getState() == "connected" then
+            tick = tick + dt
         end
 
-    end
-
-    if tick >= tickRate then
-        tick = 0
-
-        if playerNumber then
-            local mouseY = love.mouse.getY()
+        -- update to the next frame if set amount of time (tickRate) has passed
+        -- also check that the player list has been successfuly created
+        if tick >= tickRate and playerNumber then
+            tick = 0
             update_objects(dt);
             move_objects(dt);
-            --local playerY = mouseY - players[playerNumber].h/2
 
             -- Update our own player position and send it to the server
             client:send("clientPlayerState", players[playerNumber]:getState())
@@ -214,9 +227,11 @@ function love.draw()
     if paused == true then
         active_menu:draw(100, 200)
     else
+        camera:set();
+        draw_field();
         draw_objects();
-
-        love.graphics.setColor(255,255,255)
+        love.graphics.setColor(255,255,255);
+        camera:unset();
         --love.graphics.draw(image, x_pos, y_pos, rotation, scalex, scaley, xoffset, yoffset from origin)
     end
 
@@ -304,4 +319,11 @@ function update_objects(dt)
     for key, value in pairs(global_obj_array) do
         value:update(dt)
     end
+end
+
+function draw_field()
+    local num_cols = 20
+    local col_width = global_width / num_cols
+    local col_height = global_height * .9
+    love.graphics.draw(field, 0, 0)
 end
