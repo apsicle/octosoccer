@@ -50,7 +50,7 @@ function Player:shoot()
 			self.shooting = false
 			self.hasBall = false
 			pass1:play()
-			client:send("shoot", {speed = ball.speed, x = mouse_x, y = mouse_y})
+			client:send("shoot", {speed = ball.speed, x = mouse_x, y = mouse_y, id = self.id})
 		end
 	end
 end
@@ -62,6 +62,11 @@ function Player:update(dt)
 			mouse_x = camera:getMouseX()
 			mouse_y = camera:getMouseY()
 			self:setDestination(mouse_x, mouse_y)
+			client:send("clientDestination", {id = self.id, x = mouse_x, y = mouse_y})
+		end
+		if self.destination.x ~= nil and self.destination.y ~= nil then
+			local angle = math.atan2(self.destination.y - self.y, self.destination.x - self.x)
+			self.angle = angle
 		end
 		if love.keyboard.isDown('q') then
 			self.shooting = true
@@ -89,7 +94,7 @@ end
 function Player:draw(i) 
 	
 	if i == 3 then
-		love.graphics.draw(self.sprite, self.x, self.y, 0, self.x_scale, self.y_scale, self.x_offset, self.y_offset)
+		love.graphics.draw(self.sprite, self.x, self.y, -self.angle, self.x_scale, self.y_scale, self.x_offset, self.y_offset)
 	end
 end
 
@@ -114,9 +119,9 @@ function Player:setState(playerState)
 	self.y = playerState.y
 	self.destination = playerState.destination
 	self.hasBall = playerState.hasBall
-
+	self.angle = playerState.angle
 end
 
 function Player:getState()
-	return {x = self.x, y = self.y, destination = self.destination, hasBall = self.hasBall}
+	return {x = self.x, y = self.y, destination = self.destination, hasBall = self.hasBall, angle = self.angle}
 end

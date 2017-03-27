@@ -8,6 +8,7 @@ require "Ball"
 require "Player"
 menu = require "Menu"
 require "Camera"
+require "Pause"
 
 -- Utility functions
 function isColliding(this, other)
@@ -23,18 +24,28 @@ function love.load()
     time = 0
     tick = 0
 
-    -- define globals
-    local marginX = 50
+    -- Setup Globals
     scores = {0, 0}
+    field = love.graphics.newImage("sprites/field.png")
     global_obj_array = {}
     global_obj_pointer = 1
     window_width = love.graphics.getWidth()
     window_height = love.graphics.getHeight()
+    global_width = field:getWidth()
+    global_height = field:getHeight()
+    margin_width = global_width * .0133
+    margin_height = global_height * .02
+    game_started = false
+    
+    camera = Camera.new()
+    camera:setScale(window_width / global_width, window_height / global_height)
 
+    
     ball = Ball.new()
+    ball:reset()
     players = {
     }
-
+    round_paused = Pause.new(3, roundStart)
     -- %% Server on any IP, port 22122, with 2 max peers
     server = sock.newServer("192.168.0.103", 22122, 2)
     -- %% Assign bitser as serialization and deserialization functions (dumps and loads respectively)
@@ -49,6 +60,7 @@ function love.load()
         client:send("playerNum", index)
         players[index] = Player.new()
         players[index].id = index
+        players[index].team = index % 2
         server:sendToAll("playerList", map(function(a) return a:getState() end, players))
     end)
 
@@ -74,6 +86,11 @@ function love.load()
         players[index]:setState(clientPlayerState)
     end)
 
+    server:on("clientDestination", function(data)
+        local id = data.id
+        players[id]:setDestination(data.x, data.y)
+    end)
+
     server:on("shoot", function(data)
         -- acceleration is the frictional force, opposes motion
         local acceleration = -75
@@ -90,40 +107,44 @@ function love.load()
         ball.ay = y_factor * acceleration
         ball.t = t
         ball.owner = nil
+        players[data.id].hasBall = false
     end)
-
-    -- Setup Visuals
-    field = love.graphics.newImage("sprites/field.png")
-    camera = Camera.new()
-    global_width = field:getWidth()
-    global_height = field:getHeight()
-
 end
 
 function love.update(dt)
     server:update()
-    camera:update(dt)
-    -- wait until 2 players connect to start playing
-    local enoughPlayers = #server.clients >= 1
-    if not enoughPlayers then return end
 
-    -- Update moving objects
-    update_objects(dt);
-    move_objects(dt);
+    if round_paused.active then
+        round_paused:update(dt)
+    else
+        camera:update(dt)
+        -- wait until 2 players connect to start playing
+        local enoughPlayers = #server.clients >= 1
+        if not enoughPlayers then return end
 
-    -- Left/Right bounds
-    tick = tick + dt
-    time = time + dt
-
-    if tick >= tickRate then
-        tick = 0
-
-        for i, player in pairs(players) do
-            server:sendToAll("stateUpdate", {time = time, index = i, eventType = "playerState", playerState = player:getState()})
+        -- we have enough players
+        if not game_started then
+            roundStart()
+            game_started = true
         end
+        -- Update moving objects
+        update_objects(dt);
+        move_objects(dt);
 
-        server:sendToAll("stateUpdate", {time = time, eventType = "ballState", ballState = ball:getState()})
-        
+        -- Left/Right bounds
+        tick = tick + dt
+        time = time + dt
+
+        if tick >= tickRate then
+            tick = 0
+
+            for i, player in pairs(players) do
+                server:sendToAll("stateUpdate", {time = time, index = player.id, eventType = "playerState", playerState = player:getState()})
+            end
+
+            server:sendToAll("stateUpdate", {time = time, eventType = "ballState", ballState = ball:getState()})
+            
+        end
     end
 end
 
@@ -177,16 +198,28 @@ function move_objects(dt)
         -- if it is the ball, make it bounce off the walls
         else
             if value.x > global_width - 32 then
-                value.vx = value.vx * -1
-                value.ax = value.ax * -1
+                if in_range(value.y, 526, 974) then
+                    round_paused:start(3, roundStart)
+                    server:sendToAll("goal", 1)
+                    scores[1] = scores[1] + 1
+                else
+                    value.vx = value.vx * -1
+                    value.ax = value.ax * -1
+                end
             end
             if value.y > global_height - 32 then
                 value.vy = value.vy * -1
                 value.ay = value.ay * -1
             end
             if value.x < 0 + 32 then
-                value.vx = value.vx * -1
-                value.ax = value.ax * -1
+                if in_range(value.y, 526, 974) then
+                    round_paused:start(3, roundStart)
+                    server:sendToAll("goal", 2)
+                    scores[2] = scores[2] + 1
+                else
+                    value.vx = value.vx * -1
+                    value.ax = value.ax * -1
+                end
             end
             if value.y < 0 + 32 then
                 value.vy = value.vy * -1
@@ -209,4 +242,30 @@ function draw_field()
     local col_width = global_width / num_cols
     local col_height = global_height * .9
     love.graphics.draw(field, 0, 0)
+end
+
+function roundStart()
+    round_paused:start(3)
+    local x_1 = 200
+    local x_2 = global_width - 200
+    local y_1 = 300
+    local y_2 = 300
+    for i, v in pairs(players) do
+        if v.team == 1 then
+            v.x = x_1
+            v.y = y_1
+            y_1 = y_1 + 300
+        else
+            v.x = x_1
+            v.y = y_2
+            y_2 = y_2 + 300
+        end
+        v.destination = {x = nil, y = nil}
+    end
+    ball:reset()
+    for i, player in pairs(players) do
+        server:sendToAll("stateUpdate", {time = time, index = i, eventType = "playerState", playerState = player:getState()})
+    end
+    server:sendToAll("stateUpdate", {time = time, eventType = "ballState", ballState = ball:getState()})
+    server:sendToAll("centerCamera")  
 end

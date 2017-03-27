@@ -59,10 +59,10 @@ return {
 					end
 				elseif key == 'escape' then
 
-					if paused == false then paused = true
+					if in_menu == false then in_menu = true
 					else
 						if active_menu == main_menu then
-							paused = false
+							in_menu = false
 							return
 						end
 						active_menu = active_menu.parent

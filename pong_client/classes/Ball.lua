@@ -41,8 +41,8 @@ end
 function Ball:move(dt)
 	-- if has an owner, then move along with owner
 	if self.owner ~= nil then
-		self.x = self.owner.x
-		self.y = self.owner.y
+		self.x = self.owner.x + math.cos(self.owner.angle) * 50
+		self.y = self.owner.y + math.sin(self.owner.angle) * 50
 	-- else if has a specific destination, go towards there
 	elseif self.destination.x ~= nil and ball.destination.y ~= nil then
 		move_constant_speed(self, self.x, self.y, self.speed)

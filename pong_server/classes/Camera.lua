@@ -24,6 +24,7 @@ function Camera:unset()
 end
 
 function Camera:update(dt)
+  --[[
   local value = {x = love.mouse.getX(), y = love.mouse.getY()}
   if value.x > window_width - 32 then
       self:move(self.panSpeed * dt, 0)
@@ -36,6 +37,19 @@ function Camera:update(dt)
   end
   if value.y < 0 + 32 then
       self:move(0, -self.panSpeed * dt)
+  end
+  --]]
+  if love.keyboard.isDown('left') then
+    self:move(-self.panSpeed * dt, 0)
+  end
+  if love.keyboard.isDown('right') then
+    self:move(self.panSpeed * dt, 0)
+  end
+  if love.keyboard.isDown('up') then
+    self:move(0, -self.panSpeed*dt)
+  end
+  if love.keyboard.isDown('down') then
+    self:move(0, self.panSpeed*dt)
   end
 end
 

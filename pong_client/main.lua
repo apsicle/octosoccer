@@ -8,6 +8,7 @@ require "classes/Ball"
 require "classes/Player"
 Menu = require "classes/Menu"
 require "classes/Camera"
+require "classes/Pause"
 
 function love.load()
     -- how often an update is sent out
@@ -24,22 +25,48 @@ function love.load()
     client = sock.newClient("192.168.0.103", 22122)
     client:setSerialization(bitser.dumps, bitser.loads)
 
+    client:on("centerCamera", function(obj)
+        if obj then
+            if camera then
+                camera:center(obj)
+            end
+        else
+            if camera and playerNumber then
+                camera:center(players[playerNumber])
+            end
+        end
+    end)
+
+    client:on("goal", function(team)
+        scores[team] = scores[team] + 1
+    end)
+
+    client:on("paused", function()
+        server_paused = true
+        print("pausing")
+    end)
+
+    client:on("unpaused", function()
+        server_paused = false
+        print("unpausing")
+    end)
     -- store the client's index
     -- playerNumber is nil otherwise
     -- adds a new callback (function (num) playerNumber = num) to the listener trigger (client.listener.trigger[event]) for the event "playerNum"
     client:on("playerNum", function(num)
         playerNumber = num
+        team = playerNumber % 2
     end)
 
     -- receive player list on connection.
     -- players are populated and your player is set to active.
     client:on("playerList", function(playerList)
         players = {}
-        print_table(playerList)
         for i, playerState in ipairs(playerList) do
             players[i] = Player.new()
             players[i]:setState(playerState)
             players[i].id = i
+            players[i].team = i % 2
             if i == playerNumber then
                 players[i].active = true
             end
@@ -56,7 +83,7 @@ function love.load()
                 local playerState = data.playerState
 
                 -- only accept updates for the other player
-                if playerNumber and index ~= playerNumber then
+                if playerNumber then
                     if players[index] ~= nil then
                         players[index]:setState(playerState)
                     else
@@ -76,7 +103,9 @@ function love.load()
                 end
                 time.ballState = data.time
             end
-            
+        
+        else
+            print('Dropped packet type: ', data.eventType)
         end
     end)
 
@@ -118,15 +147,28 @@ function love.load()
 
 
 -- Menu Setup
-    paused = true
+    in_menu = true
     options = {debug = false, windowed = true}
     main_menu = Menu.new()
         main_menu:addItem{
             name = 'Start Game',
             action = function()
-                paused = false
+                in_menu = false
                 music_src1:pause()
                 --music_src2:play()
+            end
+        }
+        main_menu:addItem{
+            name = 'Switch Teams',
+            action = function()
+                if team then  
+                    if team == 0 then
+                        team = 1
+                    else
+                        team = 0
+                    end
+                    active_menu:keypressed('esc')
+                end
             end
         }
         main_menu:addItem{
@@ -198,12 +240,14 @@ function love.load()
 end
 
 function love.update(dt)
-    -- if paused, just update the menu
-    if paused == true then
+    -- if in_menu, just update the menu
+    client:update()
+    if in_menu == true then
         active_menu:update(dt)
+    elseif server_paused then
+        return
     else
         -- update client info... check for connection
-        client:update()
         camera:update(dt)
 
         if client:getState() == "connected" then
@@ -218,13 +262,13 @@ function love.update(dt)
             move_objects(dt);
 
             -- Update our own player position and send it to the server
-            client:send("clientPlayerState", players[playerNumber]:getState())
+            --client:send("clientPlayerState", players[playerNumber]:getState())
         end
     end
 end
 
 function love.draw()
-    if paused == true then
+    if in_menu == true then
         active_menu:draw(100, 200)
     else
         camera:set();
@@ -250,6 +294,11 @@ function love.draw()
 end
 
 function love.keypressed(key)
+    if key == "1" then
+        if camera and playerNumber then
+            camera:center(players[playerNumber])
+        end
+    end
     active_menu:keypressed(key)
 end
 
