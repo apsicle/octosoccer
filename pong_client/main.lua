@@ -294,12 +294,21 @@ function love.draw()
 end
 
 function love.keypressed(key)
-    if key == "1" then
-        if camera and playerNumber then
-            camera:center(players[playerNumber])
+    if not in_menu and playerNumber then
+        players[playerNumber]:keypressed(key)
+        if key == "1" then
+            if camera then
+                camera:center(players[playerNumber])
+            end
         end
     end
     active_menu:keypressed(key)
+end
+
+function love.mousepressed(x, y, mouse)
+    if not in_menu and playerNumber then
+        players[playerNumber]:mousepressed(mouse)
+    end
 end
 
 -- Unique loop functions

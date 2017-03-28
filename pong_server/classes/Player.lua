@@ -16,12 +16,14 @@ function Player.new (x, y, collision_group, active)
 	player.radius = 16;
 	player.speed = 3.5;
 	player.angle = 0;
+	player.destinationAngle = 0;
 	player.z_index = 2;
 	player.destination = {x = nil, y = nil}
 	player.facing = "down"
 	player.state = "standing"
 	player.active = active
 	player.isPlayer = true
+	player.turnRate = (2*math.pi)
 	player.shooting = false
 	player.hasBall = false
 	player.collision_group = 1
@@ -53,23 +55,34 @@ function Player:shoot()
 end
 
 function Player:update(dt)
-	if self.active == true then
+	--f self.active == true then
 		--print_table(self.status:get_status('invincible'))
-		if love.mouse.isDown(2) then
-			mouse_x = love.mouse.getX()
-			mouse_y = love.mouse.getY()
-			self:setDestination(mouse_x, mouse_y)
+	--[[if math.abs(self.destinationAngle - self.angle) > 2*math.pi / 360 then
+		local smaller = math.min(self.destinationAngle, self.angle)
+		local larger = math.max(self.destinationAngle, self.angle)
+		local diff_1 = larger - smaller
+		local diff_2 = 2 * math.pi - diff_1
+		local min_diff = math.min(diff_1, diff_2)
+		if math.abs((self.angle + min_diff) % (2 * math.pi) - self.destinationAngle) > 2*math.pi / 360 then
+			self.angle = self.angle + self.turnRate * dt
+		else
+			self.angle = self.angle - self.turnRate * dt
 		end
-		if self.destination.x ~= nil and self.destination.y ~= nil then
-			local angle = math.atan2(self.destination.y - self.y, self.destination.x - self.x)
-			self.angle = angle
-		end
-		if love.keyboard.isDown('q') then
-			self.shooting = true
-		end
-		if self.shooting == true then
-			if love.mouse.isDown(1) then
-				self:shoot()
+	end]]--
+	if self.turning ~= nil then
+		if self.turning == "clockwise" then
+			--turn clockwise (the shorter side) until that fact is no longer true
+			if (self.angle - self.destinationAngle) % (2*math.pi) < math.pi then
+				self.angle = (self.angle - self.turnRate * dt) % (2*math.pi)
+			else
+				self.turning = nil
+			end
+		else
+			--turn counterclockwise
+			if (self.destinationAngle - self.angle) % (2*math.pi) < math.pi then
+				self.angle = (self.angle + self.turnRate * dt) % (2*math.pi)
+			else
+				self.turning = nil
 			end
 		end
 	end
@@ -82,15 +95,17 @@ function Player:move(dt)
     if self.destination.x == nil and self.destination.y == nil then
     	return
     else
-		move_constant_speed(self, self.destination.x, self.destination.y, self.speed)
+		if not move_constant_speed(self, self.destination.x, self.destination.y, self.speed) then
+			self.destination.x = nil
+			self.destination.y = nil
+		end
 	end
-
 end
 
 function Player:draw(i) 
 	
 	if i == 3 then
-		love.graphics.draw(self.sprite, self.x, self.y, -self.angle, self.x_scale, self.y_scale, self.x_offset, self.y_offset)
+		love.graphics.draw(self.sprite, self.x, self.y, self.angle, self.x_scale, self.y_scale, self.x_offset, self.y_offset)
 	end
 end
 
@@ -105,6 +120,14 @@ end
 function Player:setDestination(x, y)
 	self.destination.x = x
 	self.destination.y = y
+	self.destinationAngle = math.atan2(y - self.y, x - self.x)
+
+	-- this expression gives the clockwise angle between a and b
+	if (self.angle - self.destinationAngle) % (2*math.pi) < math.pi then
+		self.turning = "clockwise"
+	else
+		self.turning = "counterclockwise"
+	end
 end
 
 function Player:setState(playerState)
