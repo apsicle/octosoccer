@@ -35,7 +35,7 @@ function Camera:update(dt)
         end
     end
     if value.y > window_height - 32 then
-        if self.y + window_height > global_width + 100 then
+        if self.y + window_height > global_height + 100 then
         else
             self:move(0, self.panSpeed * dt)
         end
@@ -83,8 +83,21 @@ function Camera:setPosition(x, y)
 end
 
 function Camera:center(obj)
+    -- center on x of character and constrain to 100 units outside of playing field
     self.x = obj.x - 0.5 * window_width
+    if self.x < 0 - 100 then
+        self.x = 0 - 100
+    elseif self.x > global_width + 100 then
+        self.y = global_width + 100
+    end
+
+    -- center on y of character and constrain to 100 units outside of playing field
     self.y = obj.y - 0.5 * window_height
+    if self.y < 0 - 100 then
+        self.y = 0 - 100
+    elseif self.y > global_height + 100 then
+        self.y = global_height + 100
+    end
 end
 
 function Camera:setScale(sx, sy)

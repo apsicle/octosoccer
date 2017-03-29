@@ -1,3 +1,5 @@
+-- add switch sides
+-- add 
 --package.path = package.path .. ";libraries/?.lua"
 sock = require "libraries/sock"
 bitser = require "libraries/bitser"
@@ -10,6 +12,7 @@ require "classes/Player"
 Menu = require "classes/Menu"
 require "classes/Camera"
 require "classes/Pause"
+require "classes/ChatLog"
 --require "classes/Animation"
 
 function love.load()
@@ -22,6 +25,17 @@ function love.load()
     global_obj_pointer = 1
     local marginX = 50
     scores = {0, 0}
+    chatLog = ChatLog.new()
+
+    -- Visuals Setup
+    field = love.graphics.newImage("sprites/field.png")
+    octopus_sprite = love.graphics.newImage("sprites/octopus.png")
+    shark_sprite = love.graphics.newImage("sprites/shark.png")
+    camera = Camera.new()
+    global_width = field:getWidth()
+    global_height = field:getHeight()
+    window_width = love.graphics.getWidth()
+    window_height = love.graphics.getHeight()
 
     -- new Client. This has listeners
     --client = sock.newClient("192.168.0.103", 22122)
@@ -44,6 +58,11 @@ function love.load()
     client:on("goal", function(team)
         scores[team] = scores[team] + 1
     end)
+
+    client:on("newMessage", function(data)
+        chatLog:writeNewMessage(data)
+    end)
+
 
     client:on("paused", function()
         server_paused = true
@@ -72,7 +91,7 @@ function love.load()
             players[i].id = i
             players[i].team = i % 2
             if players[i].team == 0 then
-                players[i].sprite = love.graphics.newImage("sprites/shark.png")
+                players[i].sprite = shark_sprite
             end
             if i == playerNumber then
                 players[i].active = true
@@ -99,7 +118,7 @@ function love.load()
                         players[index].id = index
                         players[index].team = index % 2
                         if players[index].team == 0 then
-                            players[index].sprite = love.graphics.newImage("sprites/shark.png")
+                            players[index].sprite = shark_sprite
                         end
                         if index == playerNumber then
                             players[index].active = true
@@ -144,22 +163,13 @@ function love.load()
 -- Audio Setup
     music_src1 = love.audio.newSource("audio/hey_ya.mp3")
     music_src1:setVolume(0.3)
-    music_src1:play()
+    --music_src1:play()
 
     music_src2 = love.audio.newSource("audio/ada.mp3")
     music_src2:setVolume(0.3)
 
     pass1 = love.audio.newSource("audio/pass.ogg")
     pass1:setVolume(1.2)
-
--- Visuals Setup
-    field = love.graphics.newImage("sprites/field.png")
-    camera = Camera.new()
-    global_width = field:getWidth()
-    global_height = field:getHeight()
-    window_width = love.graphics.getWidth()
-    window_height = love.graphics.getHeight()
-
 
 -- Menu Setup
     in_menu = true
@@ -173,19 +183,12 @@ function love.load()
                 --music_src2:play()
             end
         }
-        --[[main_menu:addItem{
-            name = 'Switch Teams',
+        main_menu:addItem{
+            name = 'Select Team',
             action = function()
-                if team then  
-                    if team == 0 then
-                        team = 1
-                    else
-                        team = 0
-                    end
-                    active_menu:keypressed('esc')
-                end
+                active_menu = teams_menu
             end
-        }--]]
+        }
         main_menu:addItem{
             name = 'Options',
             action = function()
@@ -236,21 +239,37 @@ function love.load()
             name = 'Jebaited you can\'t actually change any of these'
         }
         controls_menu:addItem{
-            name = 'Movement - Arrow Keys'
+            name = 'Movement - Right click'
         }
         controls_menu:addItem{
-            name = 'Boomerang - W'
+            name = 'Kick ball - Q (then left click destination)'
         }
         controls_menu:addItem{
-            name = 'Attack - A'
+            name = 'Sprint - E (move at double speed for 3 seconds, 10 second cooldown)'
         }
         controls_menu:addItem{
-            name = 'Freezing Field - F'
-        }
-        controls_menu:addItem{
-            name = 'Jump up a long way then fall down - R'
+            name = '1 - Re-center camera on self'
         }
 
+    teams_menu = Menu.new(main_menu)
+        teams_menu:addItem{
+            name = 'Octopirates',
+            action = function()
+                if players[playerNumber] then  
+                    client:send("select_team", {id = players[playerNumber].id, team = 1})
+                    active_menu:keypressed('esc')
+                end
+            end
+        }
+        teams_menu:addItem{
+            name = 'Sharkpedoes',
+            action = function()
+                if players[playerNumber] then
+                    client:send("select_team", {id = players[playerNumber].id, team = 0})
+                    active_menu:keypressed('esc')
+                end
+            end
+        }
     --ball = newBall(love.graphics.getWidth()/2, love.graphics.getHeight()/2)
 end
 
@@ -260,10 +279,12 @@ function love.update(dt)
     if in_menu == true then
         active_menu:update(dt)
     elseif server_paused then
+        chatLog:update(dt)
         return
     else
         -- update client info... check for connection
         camera:update(dt)
+        chatLog:update(dt)
 
         if client:getState() == "connected" then
             tick = tick + dt
@@ -311,7 +332,12 @@ function love.draw()
 end
 
 function love.keypressed(key)
+    -- if you're typing, typing takes key input precedence
+    
+    -- next, if you're not in the menu, then send it to the player input
     if not in_menu and playerNumber then
+        chatLog:keypressed(key)
+
         players[playerNumber]:keypressed(key)
         if key == "1" then
             if camera then
@@ -319,6 +345,8 @@ function love.keypressed(key)
             end
         end
     end
+    -- lastly, send it to the active menu. (this checks if you're in a menu or not before doing stuff,
+    -- but needs to be put here in in case the key is pressed 'esc' to activate the menu)
     active_menu:keypressed(key)
 end
 
@@ -397,7 +425,7 @@ function update_objects(dt)
 end
 
 function draw_animations()
-
+    chatLog:draw()
 end
 
 function update_animations(dt)

@@ -27,6 +27,8 @@ function love.load()
     -- Setup Globals
     scores = {0, 0}
     field = love.graphics.newImage("sprites/field.png")
+    octopus_sprite = love.graphics.newImage("sprites/octopus.png")
+    shark_sprite = love.graphics.newImage("sprites/shark.png")
     global_obj_array = {}
     global_obj_pointer = 1
     window_width = love.graphics.getWidth()
@@ -36,6 +38,9 @@ function love.load()
     margin_width = global_width * .0133
     margin_height = global_height * .02
     game_started = false
+
+    -- queue for functions like team switching that get down when the round ends
+    toDo = {}
     
     camera = Camera.new()
     camera:setScale(window_width / global_width, window_height / global_height)
@@ -90,6 +95,12 @@ function love.load()
         players[index]:setState(clientPlayerState)
     end)
 
+    server:on("clientChatMessage", function(data)
+        local name_message = {name = data.name, text = data.text}
+        print(data.text)
+        server:sendToAll("newMessage", name_message)
+    end)
+
     server:on("clientDestination", function(data)
         local id = data.id
         players[id]:setDestination(data.x, data.y)
@@ -123,6 +134,10 @@ function love.load()
         local id = data.id
         players[id].sprinting_cooldown = 10
         players[id].sprinting = 3
+    end)
+
+    server:on("select_team", function(data)
+        table.insert(toDo, function() local id = data.id; if players[id] then players[id].team = data.team end end)
     end)
 end
 
@@ -263,6 +278,11 @@ function roundStart(reset)
     if reset then
         scores = {0, 0}
         server:sendToAll("scores", scores)
+        toDo = {}
+    end
+    for i, v in pairs(toDo) do
+        v()
+        v = nil
     end
     round_paused:start(3)
     local x_1 = 200

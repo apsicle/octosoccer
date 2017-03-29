@@ -13,7 +13,8 @@ function Player.new (x, y, collision_group, active)
 	setmetatable(player, {__index = Player})
 	player.x = x or love.graphics.getWidth() / 2
 	player.y = y or love.graphics.getHeight() / 2
-	player.radius = 16;
+	player.name = "Player"
+	player.radius = 20;
 	player.speed = 125;
 	player.angle = 0;
 	player.destinationAngle = 0;
@@ -58,6 +59,13 @@ function Player:shoot()
 end
 
 function Player:update(dt)
+	if self.team then
+		if self.team == 0 and self.sprite ~= shark_sprite then
+			self.sprite = shark_sprite
+		elseif self.team == 1 and self.sprite ~= octopus_sprite then
+			self.sprite = octopus_sprite
+		end
+	end
 	--f self.active == true then
 		--print_table(self.status:get_status('invincible'))
 	--[[if math.abs(self.destinationAngle - self.angle) > 2*math.pi / 360 then
@@ -134,6 +142,7 @@ function Player:resolve_collision(collider)
 end
 
 function Player:setDestination(x, y)
+	self.casting = nil
 	if self.destination.x ~= x and self.destination.y ~= y then
 		self.destination.x = x
 		self.destination.y = y
@@ -169,9 +178,11 @@ function Player:setState(playerState)
 	self.hasBall = playerState.hasBall
 	self.angle = playerState.angle
 	self.speed = playerState.speed
+	self.team = playerState.team
 end
 
 function Player:getState()
-	return {x = self.x, y = self.y, destination = self.destination, hasBall = self.hasBall, angle = self.angle, speed = self.speed}
+	return {x = self.x, y = self.y, destination = self.destination, hasBall = self.hasBall, 
+	angle = self.angle, speed = self.speed, team = self.team}
 end
 
