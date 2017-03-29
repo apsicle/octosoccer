@@ -10,7 +10,7 @@ function Ball.new ()
 	ball.radius = 5;
 	ball.ax = 0;
 	ball.ay = 0;
-	ball.speed = 0
+	ball.speed = 300
 	ball.t = 0
 	ball.angle = 0;
 	ball.owner = nil;

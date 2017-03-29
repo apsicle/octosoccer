@@ -166,10 +166,11 @@ function map(func, array)
   return new_array
 end
 
-function move_constant_speed(self, x2, y2, speed)
+function move_constant_speed(self, x2, y2, speed, dt)
 	--for when you know only the magnitude to travel, and do not have access to vectorized (x, y) movement.
 	local x_dist = x2 - self.x
 	local y_dist = y2 - self.y
+	local dt = dt or 1
 
 	-- stops the movement at a certain distance from the other object for sanity's sake also because there's weird twitching when you don't do this.
 	if sq(x_dist) + sq(y_dist) > 10 then
@@ -190,7 +191,7 @@ function move_constant_speed(self, x2, y2, speed)
 		-- Otherwise, move x and y proportionally according to speed.
 		local k = y_dist / x_dist
 		local theta = math.atan2(y_dist, x_dist);
-		local a = math.sin(theta) * speed
+		local a = math.sin(theta) * speed * dt
 		local b = a / k
 		self.x = self.x + b
 		self.y = self.y + a;

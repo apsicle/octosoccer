@@ -14,7 +14,7 @@ function Player.new (x, y, collision_group, active)
 	player.x = x or love.graphics.getWidth() / 2
 	player.y = y or love.graphics.getHeight() / 2
 	player.radius = 16;
-	player.speed = 3.5;
+	player.speed = 125;
 	player.angle = 0;
 	player.destinationAngle = 0;
 	player.z_index = 2;
@@ -23,10 +23,12 @@ function Player.new (x, y, collision_group, active)
 	player.state = "standing"
 	player.active = active
 	player.isPlayer = true
-	player.turnRate = (2*math.pi)
+	player.turnRate = (4*math.pi)
 	player.shooting = false
 	player.hasBall = false
 	player.collision_group = 1
+	player.sprinting = 0
+	player.sprinting_cooldown = 0
 
 	-- SPRITES / ANIMATIONS
 	player.sprite = love.graphics.newImage("sprites/octopus.png")
@@ -50,6 +52,7 @@ function Player:shoot()
 			ball.cooldown = 1
 			self.shooting = false
 			self.hasBall = false
+			self.casting = nil
 		end
 	end
 end
@@ -69,12 +72,22 @@ function Player:update(dt)
 			self.angle = self.angle - self.turnRate * dt
 		end
 	end]]--
+	self.sprinting_cooldown = self.sprinting_cooldown - dt
+	if self.sprinting > 0 then
+		self.speed = 250
+		self.sprinting = self.sprinting - dt
+	else
+		self.speed = 125
+	end
 	if self.turning ~= nil then
 		if self.turning == "clockwise" then
 			--turn clockwise (the shorter side) until that fact is no longer true
 			if (self.angle - self.destinationAngle) % (2*math.pi) < math.pi then
 				self.angle = (self.angle - self.turnRate * dt) % (2*math.pi)
 			else
+				if self.casting then
+					self.casting()
+				end
 				self.turning = nil
 			end
 		else
@@ -82,6 +95,9 @@ function Player:update(dt)
 			if (self.destinationAngle - self.angle) % (2*math.pi) < math.pi then
 				self.angle = (self.angle + self.turnRate * dt) % (2*math.pi)
 			else
+				if self.casting then
+					self.casting()
+				end
 				self.turning = nil
 			end
 		end
@@ -94,8 +110,8 @@ function Player:move(dt)
 	-- Movement:
     if self.destination.x == nil and self.destination.y == nil then
     	return
-    else
-		if not move_constant_speed(self, self.destination.x, self.destination.y, self.speed) then
+    elseif not self.turning then
+		if not move_constant_speed(self, self.destination.x, self.destination.y, self.speed, dt) then
 			self.destination.x = nil
 			self.destination.y = nil
 		end
@@ -118,15 +134,31 @@ function Player:resolve_collision(collider)
 end
 
 function Player:setDestination(x, y)
-	self.destination.x = x
-	self.destination.y = y
+	if self.destination.x ~= x and self.destination.y ~= y then
+		self.destination.x = x
+		self.destination.y = y
+		self.destinationAngle = math.atan2(y - self.y, x - self.x)
+
+		-- this expression gives the clockwise angle between a and b
+
+		if (self.angle - self.destinationAngle) % (2*math.pi) < math.pi then
+			self.turning = "clockwise"
+		else
+			self.turning = "counterclockwise"
+		end
+	end
+end
+
+function Player:setDestinationAngle(x, y)
 	self.destinationAngle = math.atan2(y - self.y, x - self.x)
 
 	-- this expression gives the clockwise angle between a and b
-	if (self.angle - self.destinationAngle) % (2*math.pi) < math.pi then
-		self.turning = "clockwise"
-	else
-		self.turning = "counterclockwise"
+	if self.angle ~= self.destinationAngle then
+		if (self.angle - self.destinationAngle) % (2*math.pi) < math.pi then
+			self.turning = "clockwise"
+		else
+			self.turning = "counterclockwise"
+		end
 	end
 end
 
@@ -136,9 +168,10 @@ function Player:setState(playerState)
 	self.destination = playerState.destination
 	self.hasBall = playerState.hasBall
 	self.angle = playerState.angle
+	self.speed = playerState.speed
 end
 
 function Player:getState()
-	return {x = self.x, y = self.y, destination = self.destination, hasBall = self.hasBall, angle = self.angle}
+	return {x = self.x, y = self.y, destination = self.destination, hasBall = self.hasBall, angle = self.angle, speed = self.speed}
 end
 

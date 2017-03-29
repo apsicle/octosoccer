@@ -2,6 +2,7 @@
 sock = require "libraries/sock"
 bitser = require "libraries/bitser"
 require "libraries/scripts"
+require "libraries/anim8"
 
 --package.path = package.path .. ";classes/?.lua"
 require "classes/Ball"
@@ -9,6 +10,7 @@ require "classes/Player"
 Menu = require "classes/Menu"
 require "classes/Camera"
 require "classes/Pause"
+--require "classes/Animation"
 
 function love.load()
     -- how often an update is sent out
@@ -22,7 +24,9 @@ function love.load()
     scores = {0, 0}
 
     -- new Client. This has listeners
-    client = sock.newClient("192.168.0.103", 22122)
+    --client = sock.newClient("192.168.0.103", 22122)
+    client = sock.newClient("74.96.117.110", 22122)
+    --client = sock.newClient("192.168.1.11", 22122)
     client:setSerialization(bitser.dumps, bitser.loads)
 
     client:on("centerCamera", function(obj)
@@ -67,6 +71,9 @@ function love.load()
             players[i]:setState(playerState)
             players[i].id = i
             players[i].team = i % 2
+            if players[i].team == 0 then
+                players[i].sprite = love.graphics.newImage("sprites/shark.png")
+            end
             if i == playerNumber then
                 players[i].active = true
             end
@@ -89,6 +96,14 @@ function love.load()
                     else
                         players[index] = Player.new()
                         players[index]:setState(playerState)
+                        players[index].id = index
+                        players[index].team = index % 2
+                        if players[index].team == 0 then
+                            players[index].sprite = love.graphics.newImage("sprites/shark.png")
+                        end
+                        if index == playerNumber then
+                            players[index].active = true
+                        end
                     end
                 end
                 time.playerState = data.time
@@ -158,7 +173,7 @@ function love.load()
                 --music_src2:play()
             end
         }
-        main_menu:addItem{
+        --[[main_menu:addItem{
             name = 'Switch Teams',
             action = function()
                 if team then  
@@ -170,7 +185,7 @@ function love.load()
                     active_menu:keypressed('esc')
                 end
             end
-        }
+        }--]]
         main_menu:addItem{
             name = 'Options',
             action = function()
@@ -260,6 +275,7 @@ function love.update(dt)
             tick = 0
             update_objects(dt);
             move_objects(dt);
+            update_animations(dt);
 
             -- Update our own player position and send it to the server
             --client:send("clientPlayerState", players[playerNumber]:getState())
@@ -274,6 +290,7 @@ function love.draw()
         camera:set();
         draw_field();
         draw_objects();
+        draw_animations();
         love.graphics.setColor(255,255,255);
         camera:unset();
         --love.graphics.draw(image, x_pos, y_pos, rotation, scalex, scaley, xoffset, yoffset from origin)
@@ -377,6 +394,14 @@ function update_objects(dt)
     for key, value in pairs(global_obj_array) do
         value:update(dt)
     end
+end
+
+function draw_animations()
+
+end
+
+function update_animations(dt)
+
 end
 
 function draw_field()

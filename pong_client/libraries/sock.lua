@@ -1004,6 +1004,13 @@ function Client:getPort()
     return self.port
 end
 
+function Client:setAddress(address)
+    self.address = address
+end
+
+function Client:setPort(port)
+    self.port = port
+end
 --- Set the serialization functions for sending and receiving data.
 -- Both the client and server must share the same serialization method.
 -- @tparam function serialize The serialization function to use.

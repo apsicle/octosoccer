@@ -25,7 +25,7 @@ end
 
 function Camera:update(dt)
     local value = {x = love.mouse.getX(), y = love.mouse.getY()}
-
+    
     -- pan if on edge of screen
     if value.x > window_width - 32 then
         -- stop panning if reached edge of map

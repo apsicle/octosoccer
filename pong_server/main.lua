@@ -47,7 +47,8 @@ function love.load()
     }
     round_paused = Pause.new(3, roundStart)
     -- %% Server on any IP, port 22122, with 2 max peers
-    server = sock.newServer("192.168.0.103", 22122, 2)
+    --server = sock.newServer("192.168.0.103", 22122, 2)
+    server = sock.newServer("192.168.1.11", 22122, 8)
     -- %% Assign bitser as serialization and deserialization functions (dumps and loads respectively)
     server:setSerialization(bitser.dumps, bitser.loads)
 
@@ -61,7 +62,10 @@ function love.load()
         players[index] = Player.new()
         players[index].id = index
         players[index].team = index % 2
-        server:sendToAll("playerList", map(function(a) return a:getState() end, players))
+        if players[index].team == 0 then
+            players[index].sprite = love.graphics.newImage("sprites/shark.png")
+        end
+        server:sendToPeer(server:getPeerByIndex(index), "playerList", map(function(a) return a:getState() end, players))
     end)
 
     server:on("disconnect", function(data, client)
@@ -91,9 +95,14 @@ function love.load()
         players[id]:setDestination(data.x, data.y)
     end)
 
+    server:on("clientDestinationAngle", function(data)
+        local id = data.id
+        players[id]:setDestinationAngle(data.x, data.y)
+    end)
+
     server:on("shoot", function(data)
         -- acceleration is the frictional force, opposes motion
-        local acceleration = -75
+        local acceleration = -90
         ball.speed = data.speed
         local x_dist = data.x - ball.x
         local y_dist = data.y - ball.y
@@ -109,6 +118,12 @@ function love.load()
         ball.owner = nil
         players[data.id].hasBall = false
     end)
+
+    server:on("sprinting", function(data)
+        local id = data.id
+        players[id].sprinting_cooldown = 10
+        players[id].sprinting = 3
+    end)
 end
 
 function love.update(dt)
@@ -119,7 +134,7 @@ function love.update(dt)
     else
         camera:update(dt)
         -- wait until 2 players connect to start playing
-        local enoughPlayers = #server.clients >= 1
+        local enoughPlayers = #server.clients >= 2
         if not enoughPlayers then return end
 
         -- we have enough players
@@ -244,7 +259,11 @@ function draw_field()
     love.graphics.draw(field, 0, 0)
 end
 
-function roundStart()
+function roundStart(reset)
+    if reset then
+        scores = {0, 0}
+        server:sendToAll("scores", scores)
+    end
     round_paused:start(3)
     local x_1 = 200
     local x_2 = global_width - 200
@@ -256,9 +275,10 @@ function roundStart()
             v.y = y_1
             y_1 = y_1 + 300
         else
-            v.x = x_1
+            v.x = x_2
             v.y = y_2
             y_2 = y_2 + 300
+            v.angle = math.pi
         end
         v.destination = {x = nil, y = nil}
     end
@@ -268,4 +288,10 @@ function roundStart()
     end
     server:sendToAll("stateUpdate", {time = time, eventType = "ballState", ballState = ball:getState()})
     server:sendToAll("centerCamera")  
+end
+
+function love.keypressed(key)
+    if key == "r" then
+        roundStart(true)
+    end
 end
