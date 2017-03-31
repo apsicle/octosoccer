@@ -61,7 +61,8 @@ function love.load()
     -- for a larger game, but it's good enough for this application.
     -- %% server:on(event, callback)
     server:on("connect", function(data, client)
-        -- tell the peer what their index is
+        -- tell the peer what their playerNumber is, create a player object in our server list
+        -- assign it the proper team, sprite, and update the playerList and send it back to the new client
         local index = client:getIndex()
         client:send("playerNum", index)
         players[index] = Player.new()
@@ -97,7 +98,6 @@ function love.load()
 
     server:on("clientChatMessage", function(data)
         local name_message = {name = data.name, text = data.text}
-        print(data.text)
         server:sendToAll("newMessage", name_message)
     end)
 
@@ -109,6 +109,13 @@ function love.load()
     server:on("clientDestinationAngle", function(data)
         local id = data.id
         players[id]:setDestinationAngle(data.x, data.y)
+    end)
+
+    server:on("clientNameChange", function(data)
+        local id = data.id
+        if players[id].name then
+            players[id].name = data.name
+        end
     end)
 
     server:on("shoot", function(data)
@@ -169,6 +176,7 @@ function love.update(dt)
             tick = 0
 
             for i, player in pairs(players) do
+                print(player.name)
                 server:sendToAll("stateUpdate", {time = time, index = player.id, eventType = "playerState", playerState = player:getState()})
             end
 

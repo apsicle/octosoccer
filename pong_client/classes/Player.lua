@@ -14,7 +14,7 @@ function Player.new (x, y, collision_group, active)
 	player.x = x or love.graphics.getWidth() / 2
 	player.y = y or love.graphics.getHeight() / 2
 	player.radius = 20;
-	player.name = "Player"
+	player.name = options.player_name or "Player"
 	player.speed = 125;
 	player.angle = 0;
 	player.destinationAngle = 0;
@@ -169,6 +169,8 @@ function Player:draw(i)
 			end
 		end
 		love.graphics.setColor(255,255,255)
+		-- put name above
+		love.graphics.print(self.name, self.x - 25, self.y - 50)
 		love.graphics.draw(self.sprite, self.x, self.y, self.angle, self.x_scale, self.y_scale, self.x_offset, self.y_offset)
 	end
 end
@@ -221,9 +223,10 @@ function Player:setState(playerState)
 	self.angle = playerState.angle
 	self.speed = playerState.speed
 	self.team = playerState.team
+	self.name = playerState.name
 end
 
 function Player:getState()
 	return {x = self.x, y = self.y, destination = self.destination, hasBall = self.hasBall, 
-	angle = self.angle, speed = self.speed, team = self.team}
+	angle = self.angle, speed = self.speed, team = self.team, name = self.name}
 end

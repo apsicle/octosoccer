@@ -1,0 +1,3 @@
+debug:false
+windowed:false
+player_name:kleppo 123

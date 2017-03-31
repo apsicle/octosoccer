@@ -131,6 +131,9 @@ function Player:draw(i)
 	if i == 3 then
 		love.graphics.draw(self.sprite, self.x, self.y, self.angle, self.x_scale, self.y_scale, self.x_offset, self.y_offset)
 	end
+	love.graphics.setColor(255,255,255)
+		-- put name above
+	love.graphics.print(self.name, self.x - window_width / 30, self.y - window_height / 12)
 end
 
 function Player:check_collisions()
@@ -179,10 +182,11 @@ function Player:setState(playerState)
 	self.angle = playerState.angle
 	self.speed = playerState.speed
 	self.team = playerState.team
+	self.name = playerState.name
 end
 
 function Player:getState()
 	return {x = self.x, y = self.y, destination = self.destination, hasBall = self.hasBall, 
-	angle = self.angle, speed = self.speed, team = self.team}
+	angle = self.angle, speed = self.speed, team = self.team, name = self.name}
 end
 

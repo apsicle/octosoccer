@@ -6,6 +6,13 @@ function add_object(array, pointer, object)
 	return pointer
 end
 
+function add_object_animation(array, pointer, object)
+	--inserts an object in an table and returns the index at which it was inserted
+	table.insert(array, pointer, object)
+	global_animation_pointer = global_animation_pointer + 1;
+	return pointer
+end
+
 
 function blend_colors(rgb1, rgb2, t)
 	-- sqrt( [1-t]*rgb1^2 + [t]*rgb2^2)
@@ -360,6 +367,33 @@ end
 
 function sign(x)
   return x>0 and 1 or x<0 and -1 or 0
+end
+
+function Split(str, delim, maxNb)
+   -- Eliminate bad cases...
+   if string.find(str, delim) == nil then
+      return { str }
+   end
+   if maxNb == nil or maxNb < 1 then
+      maxNb = 0    -- No limit
+   end
+   local result = {}
+   local pat = "(.-)" .. delim .. "()"
+   local nb = 0
+   local lastPos
+   for part, pos in string.gfind(str, pat) do
+      nb = nb + 1
+      result[nb] = part
+      lastPos = pos
+      if nb == maxNb then
+         break
+      end
+   end
+   -- Handle the last field
+   if nb ~= maxNb then
+      result[nb + 1] = string.sub(str, lastPos)
+   end
+   return result
 end
 
 function sq(num)

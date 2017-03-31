@@ -16,6 +16,33 @@ require "classes/ChatLog"
 --require "classes/Animation"
 
 function love.load()
+
+    -- read in the options from config.txt or create it (changing options saves to config.txt)
+    options = {}
+    if love.filesystem.exists("config.txt") then
+        for line in io.lines("config.txt") do
+            print(line)
+            local split_result = Split(line, ":", 2)
+            local option_title = split_result[1]
+            local option_setting = split_result[2]
+            options[option_title] = option_setting
+        end
+    else
+        config_file = io.open("config.txt", "w")
+        config_file:write("debug:false\n", "windowed:true\n", "player_name:Player\n")
+        config_file:close()
+        options = {debug = false, windowed = false, player_name = "Player"}
+    end
+
+    -- create the window
+    if options.windowed then
+        -- set to windowed
+        love.window.setMode(1280, 720, {fullscreen = false}) 
+    else
+        -- set to fullscreen
+        love.window.setMode(0, 0, {fullscreen = true})
+    end
+
     -- how often an update is sent out
     tickRate = 1/60
     tick = 0
@@ -23,11 +50,14 @@ function love.load()
 
     global_obj_array = {}
     global_obj_pointer = 1
+    global_animation_array = {}
+    global_animation_pointer = 1
     local marginX = 50
     scores = {0, 0}
     chatLog = ChatLog.new()
 
     -- Visuals Setup
+    splash = love.graphics.newImage("sprites/splash.png")
     field = love.graphics.newImage("sprites/field.png")
     octopus_sprite = love.graphics.newImage("sprites/octopus.png")
     shark_sprite = love.graphics.newImage("sprites/shark.png")
@@ -36,12 +66,17 @@ function love.load()
     global_height = field:getHeight()
     window_width = love.graphics.getWidth()
     window_height = love.graphics.getHeight()
+    connected = false
 
     -- new Client. This has listeners
     --client = sock.newClient("192.168.0.103", 22122)
     client = sock.newClient("74.96.117.110", 22122)
     --client = sock.newClient("192.168.1.11", 22122)
     client:setSerialization(bitser.dumps, bitser.loads)
+
+    client:on("connect", function()
+        connected = true
+    end)
 
     client:on("centerCamera", function(obj)
         if obj then
@@ -79,6 +114,7 @@ function love.load()
     client:on("playerNum", function(num)
         playerNumber = num
         team = playerNumber % 2
+        client:send("clientNameChange", {id = playerNumber, name = options.player_name or "Player"})
     end)
 
     -- receive player list on connection.
@@ -95,6 +131,7 @@ function love.load()
             end
             if i == playerNumber then
                 players[i].active = true
+                players[i].name = options.player_name or "Player"
             end
         end
     end)
@@ -158,7 +195,7 @@ function love.load()
         scores = data
     end)
 
-    client:connect()
+    client:connect({test = 1})
 
 -- Audio Setup
     music_src1 = love.audio.newSource("audio/hey_ya.mp3")
@@ -173,7 +210,7 @@ function love.load()
 
 -- Menu Setup
     in_menu = true
-    options = {debug = false, windowed = true}
+
     main_menu = Menu.new()
         main_menu:addItem{
             name = 'Start Game',
@@ -190,6 +227,14 @@ function love.load()
             end
         }
         main_menu:addItem{
+            name = 'Change Name',
+            action = function()
+                -- if you're not connected to the server, save the name locally (it gets sent when you connect)
+                active_menu = name_menu
+                -- if you have already connected send the name change to the server as a "clientNameChange" event
+            end
+        }
+        main_menu:addItem{
             name = 'Options',
             action = function()
                 active_menu = options_menu
@@ -203,12 +248,14 @@ function love.load()
         }
     main_menu.parent = main_menu
     active_menu = main_menu
+    name_menu = Menu.new(main_menu, true)
 
     options_menu = Menu.new(main_menu)
         options_menu:addItem{
             name = 'Toggle debug mode',
             action = function()
                 options['debug'] = not options['debug']
+                write_options()
             end
         }
         options_menu:addItem{
@@ -226,12 +273,14 @@ function love.load()
                     window_width = love.graphics.getWidth()
                     window_height = love.graphics.getHeight()
                 else
-                    love.window.setMode(800, 600, {fullscreen = false})
+                    love.window.setMode(1280, 720, {fullscreen = false})
                     options.windowed = true
                     window_width = love.graphics.getWidth()
                     window_height = love.graphics.getHeight()
                 end
+                write_options()
             end
+
         }
 
     controls_menu = Menu.new(options_menu)
@@ -279,7 +328,6 @@ function love.update(dt)
     if in_menu == true then
         active_menu:update(dt)
     elseif server_paused then
-        chatLog:update(dt)
         return
     else
         -- update client info... check for connection
@@ -306,17 +354,23 @@ end
 
 function love.draw()
     if in_menu == true then
+        local sx = love.graphics.getWidth() / splash:getWidth()
+        local sy = love.graphics.getHeight() / splash:getHeight()
+        love.graphics.setColor(255,255,255, 192);
+        love.graphics.draw(splash, (window_width - sy * splash:getWidth()) / 2, 0, 0, sy, sy)
         active_menu:draw(100, 200)
     else
+        love.graphics.setColor(255,255,255);
         camera:set();
         draw_field();
         draw_objects();
         draw_animations();
-        love.graphics.setColor(255,255,255);
+        chatLog:draw();
         camera:unset();
         --love.graphics.draw(image, x_pos, y_pos, rotation, scalex, scaley, xoffset, yoffset from origin)
     end
 
+    love.graphics.setColor(255,255,255)
     love.graphics.print(client:getState(), 5, 5)
     love.graphics.print('client ' .. client:getIndex(), 5, 65)
     if players ~= nil then
@@ -337,13 +391,20 @@ function love.keypressed(key)
     -- next, if you're not in the menu, then send it to the player input
     if not in_menu and playerNumber then
         chatLog:keypressed(key)
+        if chatLog.typing then
+        else
+            players[playerNumber]:keypressed(key)
 
-        players[playerNumber]:keypressed(key)
-        if key == "1" then
-            if camera then
-                camera:center(players[playerNumber])
+            if key == "1" then
+                if camera then
+                    camera:center(players[playerNumber])
+                end
             end
         end
+    end
+
+    if nameLog then
+        nameLog:keypressed(key)
     end
     -- lastly, send it to the active menu. (this checks if you're in a menu or not before doing stuff,
     -- but needs to be put here in in case the key is pressed 'esc' to activate the menu)
@@ -425,11 +486,15 @@ function update_objects(dt)
 end
 
 function draw_animations()
-    chatLog:draw()
+    for key, value in pairs(global_animation_array) do
+        value:draw()
+    end
 end
 
 function update_animations(dt)
-
+    for key, value in pairs(global_animation_array) do
+        value:update(dt)
+    end
 end
 
 function draw_field()
@@ -438,3 +503,12 @@ function draw_field()
     local col_height = global_height * .9
     love.graphics.draw(field, 0, 0)
 end
+
+function write_options()
+    local config_file = io.open('config.txt', 'w')
+    for i, v in pairs(options) do
+        config_file:write(("%s:%s\n"):format(i,v))
+    end
+    config_file:close()
+end
+
