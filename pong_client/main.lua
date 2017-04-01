@@ -4,7 +4,7 @@
 sock = require "libraries/sock"
 bitser = require "libraries/bitser"
 require "libraries/scripts"
-require "libraries/anim8"
+anim8 = require "libraries/anim8"
 
 --package.path = package.path .. ";classes/?.lua"
 require "classes/Ball"
@@ -13,7 +13,7 @@ Menu = require "classes/Menu"
 require "classes/Camera"
 require "classes/Pause"
 require "classes/ChatLog"
---require "classes/Animation"
+require "classes/Animation"
 
 function love.load()
 
@@ -57,6 +57,7 @@ function love.load()
     chatLog = ChatLog.new()
 
     -- Visuals Setup
+    kick_cursor = love.mouse.newCursor("sprites/kick_cursor.png", 16, 16)
     splash = love.graphics.newImage("sprites/splash.png")
     field = love.graphics.newImage("sprites/field.png")
     octopus_sprite = love.graphics.newImage("sprites/octopus.png")
@@ -136,6 +137,10 @@ function love.load()
         end
     end)
 
+    client:on("requestPass", function(data)
+        local id = data.id
+        Animation.new(love.graphics.newImage("sprites/passme.png"), players[id].x, players[id].y - 75, 1, 1, "pauseAtEnd")
+    end)
     -- receive info on where the players are located
     client:on("stateUpdate", function(data)
         -- only take the most recent update
@@ -285,19 +290,25 @@ function love.load()
 
     controls_menu = Menu.new(options_menu)
         controls_menu:addItem{
-            name = 'Jebaited you can\'t actually change any of these'
+            name = 'You can\'t change these'
         }
         controls_menu:addItem{
-            name = 'Movement - Right click'
+            name = 'Right Click - Move'
         }
         controls_menu:addItem{
-            name = 'Kick ball - Q (then left click destination)'
+            name = 'Q + click - Kick ball'
         }
         controls_menu:addItem{
-            name = 'Sprint - E (move at double speed for 3 seconds, 10 second cooldown)'
+            name = 'E - Sprint'
         }
         controls_menu:addItem{
-            name = '1 - Re-center camera on self'
+            name = 'D - Request Pass'
+        }
+        controls_menu:addItem{
+            name = '1 - Re-center camera'
+        }
+        controls_menu:addItem{
+            name = 'Enter - Chat'
         }
 
     teams_menu = Menu.new(main_menu)
@@ -373,9 +384,6 @@ function love.draw()
     love.graphics.setColor(255,255,255)
     love.graphics.print(client:getState(), 5, 5)
     love.graphics.print('client ' .. client:getIndex(), 5, 65)
-    if players ~= nil then
-        love.graphics.print('has ball ' .. tostring(players[playerNumber].hasBall))
-    end
     if playerNumber then
         love.graphics.print("Player " .. playerNumber, 5, 25)
     else
@@ -387,28 +395,23 @@ end
 
 function love.keypressed(key)
     -- if you're typing, typing takes key input precedence
-    
-    -- next, if you're not in the menu, then send it to the player input
-    if not in_menu and playerNumber then
-        chatLog:keypressed(key)
-        if chatLog.typing then
-        else
-            players[playerNumber]:keypressed(key)
-
-            if key == "1" then
-                if camera then
-                    camera:center(players[playerNumber])
-                end
-            end
-        end
+    local inputConsumed = false
+    if chatLog then
+        -- chatLog takes precedence. if you're typing, any keyboard input is taken by chatLog
+        inputConsumed = chatLog:keypressed(key)
     end
-
-    if nameLog then
-        nameLog:keypressed(key)
+    if not inputConsumed and playerNumber then
+        -- if you're in the game, player uses input. otherwise, input is not consumed
+        inputConsumed = players[playerNumber]:keypressed(key)
+    end
+    if not inputConsumed and camera then
+        inputConsumed = camera:keypressed(key)
     end
     -- lastly, send it to the active menu. (this checks if you're in a menu or not before doing stuff,
     -- but needs to be put here in in case the key is pressed 'esc' to activate the menu)
-    active_menu:keypressed(key)
+    if not inputConsumed and active_menu then
+        active_menu:keypressed(key)
+    end
 end
 
 function love.mousepressed(x, y, mouse)

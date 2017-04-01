@@ -92,21 +92,26 @@ function Player:update(dt)
 			--turn clockwise (the shorter side) until that fact is no longer true
 			if (self.angle - self.destinationAngle) % (2*math.pi) < math.pi then
 				self.angle = (self.angle - self.turnRate * dt) % (2*math.pi)
-			else
-				if self.casting then
-					self.casting()
+				if (self.angle - self.destinationAngle) % (2*math.pi) >= math.pi then
+					if self.casting then
+						self.casting()
+					end
+					self.angle = self.destinationAngle
+					print(self.angle, self.destinationAngle)
+					self.turning = nil
 				end
-				self.turning = nil
 			end
 		else
 			--turn counterclockwise
 			if (self.destinationAngle - self.angle) % (2*math.pi) < math.pi then
 				self.angle = (self.angle + self.turnRate * dt) % (2*math.pi)
-			else
-				if self.casting then
-					self.casting()
+				if (self.destinationAngle - self.angle) % (2*math.pi) >= math.pi then
+					if self.casting then
+						self.casting()
+					end
+					self.angle = self.destinationAngle
+					self.turning = nil
 				end
-				self.turning = nil
 			end
 		end
 	end
@@ -149,27 +154,37 @@ function Player:setDestination(x, y)
 	if self.destination.x ~= x and self.destination.y ~= y then
 		self.destination.x = x
 		self.destination.y = y
-		self.destinationAngle = math.atan2(y - self.y, x - self.x)
 
-		-- this expression gives the clockwise angle between a and b
+		if self.destination.x ~= nil and self.destination.y ~= nil then
+			self.destinationAngle = math.atan2(y - self.y, x - self.x)
 
-		if (self.angle - self.destinationAngle) % (2*math.pi) < math.pi then
-			self.turning = "clockwise"
-		else
-			self.turning = "counterclockwise"
+			-- this expression gives the clockwise angle between a and b
+			local angle_diff = self.angle - self.destinationAngle
+			-- for visual purposes, if angle is < 2 degrees don't bother changing it
+			--if math.abs(angle_diff) > math.pi * 2 / 180 then
+				if (angle_diff) % (2*math.pi) < math.pi then
+					self.turning = "clockwise"
+				else
+					self.turning = "counterclockwise"
+				end
+			--end
 		end
 	end
 end
 
 function Player:setDestinationAngle(x, y)
-	self.destinationAngle = math.atan2(y - self.y, x - self.x)
+	if x == nil and y == nil then
+		return
+	else
+		self.destinationAngle = math.atan2(y - self.y, x - self.x)
 
-	-- this expression gives the clockwise angle between a and b
-	if self.angle ~= self.destinationAngle then
-		if (self.angle - self.destinationAngle) % (2*math.pi) < math.pi then
-			self.turning = "clockwise"
-		else
-			self.turning = "counterclockwise"
+		-- this expression gives the clockwise angle between a and b
+		if self.angle ~= self.destinationAngle then
+			if (self.angle - self.destinationAngle) % (2*math.pi) < math.pi then
+				self.turning = "clockwise"
+			else
+				self.turning = "counterclockwise"
+			end
 		end
 	end
 end

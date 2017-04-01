@@ -68,92 +68,98 @@ return {
 				end
 			end,
 			keypressed = function(self, key)
-				-- if its an input screen, accepting text input is your job
-				if self.inputScreen then
-					if key == 'return' then
-						if #self.newInput > 0 then
-							local myInput = ""
-					        for i = 1, #self.newInput, 1 do
-					        	myInput = myInput .. tostring(self.newInput[i])
-					        end
-							options.player_name = myInput
-							write_options()
-							if connected then
-								players[playerNumber].name = myInput
-								client:send("clientNameChange", {id = playerNumber, name = myInput})
+				if in_menu then
+					-- if its an input screen, accepting text input is your job
+					if self.inputScreen then
+						if key == 'return' then
+							if #self.newInput > 0 then
+								local myInput = ""
+						        for i = 1, #self.newInput, 1 do
+						        	myInput = myInput .. tostring(self.newInput[i])
+						        end
+								options.player_name = myInput
+								write_options()
+								if connected then
+									players[playerNumber].name = myInput
+									client:send("clientNameChange", {id = playerNumber, name = myInput})
+								end
+								self.newInput = {}
+								self.inputPointer = 1
+								active_menu = main_menu
 							end
-							self.newInput = {}
-							self.inputPointer = 1
-							active_menu = main_menu
-						end
-					elseif key == "backspace" then
-				    	-- if your message is at least 1 long then delete the last character
-				        if #self.newInput > 0 then 
-				        	self.newInput[self.inputPointer - 1] = nil; 
-				        	self.inputPointer = self.inputPointer - 1  
-				        end
-					else
-						local keystring = ""
-				    	-- if escape end and return
-				    	if key == "escape" then
-				    		self.newInput = {}
-							self.inputPointer = 1
-							active_menu = main_menu
-				    	end
-				    	-- otherwise, take the key and convert to the proper keystring
-				    	if key == "space" then
-				    		keystring = " "
-				    	elseif string.len(key) == 1 then
-				    		if love.keyboard.isDown("rshift") or love.keyboard.isDown("lshift") then
-				    			keystring = self.chars[key]
-				    		else
-				    			keystring = key
-				    		end
-				    	end
+						elseif key == "backspace" then
+					    	-- if your message is at least 1 long then delete the last character
+					        if #self.newInput > 0 then 
+					        	self.newInput[self.inputPointer - 1] = nil; 
+					        	self.inputPointer = self.inputPointer - 1  
+					        end
+						else
+							local keystring = ""
+					    	-- if escape end and return
+					    	if key == "escape" then
+					    		self.newInput = {}
+								self.inputPointer = 1
+								active_menu = main_menu
+					    	end
+					    	-- otherwise, take the key and convert to the proper keystring
+					    	if key == "space" then
+					    		keystring = " "
+					    	elseif string.len(key) == 1 then
+					    		if love.keyboard.isDown("rshift") or love.keyboard.isDown("lshift") then
+					    			keystring = self.chars[key]
+					    		else
+					    			keystring = key
+					    		end
+					    	end
 
-				    	if keystring ~= "" then 
-					    	self.newInput[self.inputPointer] = keystring
-					    	self.inputPointer = self.inputPointer + 1
-					    end
-						local keystring = key
-						if key == "space" then
-							keystring = " "
+					    	if keystring ~= "" then 
+						    	self.newInput[self.inputPointer] = keystring
+						    	self.inputPointer = self.inputPointer + 1
+						    end
+							local keystring = key
+							if key == "space" then
+								keystring = " "
+							end
+						end
+					else
+					-- if not, the key inputs are used to scroll along the menu
+						if key == 'up' then
+							if self.selected > 1 then
+								self.selected = self.selected - 1
+								self.animOffset = self.animOffset + 1
+							else
+								self.selected = #self.items
+								self.animOffset = self.animOffset - (#self.items-1)
+							end
+						elseif key == 'down' then
+							if self.selected < #self.items then
+								self.selected = self.selected + 1
+								self.animOffset = self.animOffset - 1
+							else
+								self.selected = 1
+								self.animOffset = self.animOffset + (#self.items-1)
+							end
+						elseif key == 'return' then
+							if self.items[self.selected].action then
+								self.items[self.selected]:action()
+							end
+						elseif key == 'escape' then
+							active_menu = self.parent
+							if active_menu == main_menu then
+								in_menu = false
+							end
 						end
 					end
 				else
-				-- if not, the key inputs are used to scroll along the menu
-					if key == 'up' then
-						if self.selected > 1 then
-							self.selected = self.selected - 1
-							self.animOffset = self.animOffset + 1
-						else
-							self.selected = #self.items
-							self.animOffset = self.animOffset - (#self.items-1)
-						end
-					elseif key == 'down' then
-						if self.selected < #self.items then
-							self.selected = self.selected + 1
-							self.animOffset = self.animOffset - 1
-						else
-							self.selected = 1
-							self.animOffset = self.animOffset + (#self.items-1)
-						end
-					elseif key == 'return' then
-						if self.items[self.selected].action then
-							self.items[self.selected]:action()
-						end
-					elseif key == 'escape' then
-
-						if in_menu == false then in_menu = true
-						else
-							if active_menu == main_menu then
-								in_menu = false
-								return
-							end
-							active_menu = active_menu.parent
-						end
+					if key == 'escape' then
+						in_menu = true
+						active_menu = main_menu
+					else
+						return false
 					end
 				end
+				-- if this returns true, it means the keyboard input was consumed by the menu
+				return true
 			end
 		}
 	end

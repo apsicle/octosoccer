@@ -12,6 +12,19 @@ function Camera.new()
     return camera
 end
 
+function Camera:keypressed(key)
+    if not in_menu then
+        if key == "1" then
+            camera:center(players[playerNumber])
+        else
+            return false
+        end
+    else
+        return false
+    end
+    return true
+end
+
 function Camera:set()
     love.graphics.push()
     love.graphics.rotate(-self.rotation)

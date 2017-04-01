@@ -131,10 +131,10 @@ function color_index(color)
 	return nil
 end
 
-function create_animation(image, rate)
+function create_animation(image, rate, callback)
 	-- takes in a newImage var from love and a rate. Lower rate = faster animation
 	local grid = anim8.newGrid(image:getHeight(), image:getHeight(), image:getWidth(), image:getHeight())
-  	local animation = anim8.newAnimation(grid(tostring(1) .. '-' .. tostring(image:getWidth() / image:getHeight()),1), rate)
+  	local animation = anim8.newAnimation(grid(tostring(1) .. '-' .. tostring(image:getWidth() / image:getHeight()),1), rate, callback)
   	return animation
 end
 

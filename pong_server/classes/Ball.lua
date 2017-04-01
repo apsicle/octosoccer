@@ -7,7 +7,7 @@ function Ball.new ()
 	ball.y = y or love.graphics.getHeight() / 2
 	ball.vx = 0
 	ball.vy = 0
-	ball.radius = 5;
+	ball.radius = 15;
 	ball.ax = 0;
 	ball.ay = 0;
 	ball.speed = 300
@@ -112,7 +112,7 @@ function Ball:reset()
     self.owner = nil
     self.vx = 0
 	self.vy = 0
-	self.radius = 5;
+	self.radius = 15;
 	self.ax = 0;
 	self.ay = 0;
 	self.speed = 0

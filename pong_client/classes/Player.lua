@@ -31,6 +31,9 @@ function Player.new (x, y, collision_group, active)
 	player.sprinting = 0
 	player.sprinting_cooldown = 0
 
+	-- this is an ability queue
+	player.casting = nil
+
 	-- SPRITES / ANIMATIONS
 	player.sprite = love.graphics.newImage("sprites/octopus.png")
 	player.x_scale = 0.5
@@ -60,23 +63,36 @@ function Player:shoot(x, y)
 end
 
 function Player:keypressed(key)
-	if key == 'q' then
-		self.shooting = true
+	if not in_menu then
+		if key == 'q' then
+			self.shooting = true
+			love.mouse.setCursor(kick_cursor)
+		elseif key == 'e' and self.sprinting_cooldown <= 0 then
+			self.sprinting_cooldown = 10
+			self.sprinting = 3
+			client:send("sprinting", {id = self.id})
+		elseif key == 's' then
+			self.casting = nil
+			self:setDestination(nil, nil)
+			self:setDestinationAngle(nil, nil)
+			client:send("stop", {id = self.id})
+		elseif key == 'd' then
+			client:send("requestPass", {id = self.id})
+		else
+			return false
+		end
+	else
+		return false
 	end
-	if key == 'e' and self.sprinting_cooldown <= 0 then
-		self.sprinting_cooldown = 10
-		self.sprinting = 3
-		client:send("sprinting", {id = self.id})
-	end
+	return true
 end
 
 function Player:mousepressed(mouse)
-	print(mouse)
 	if mouse == 2 then
 		mouse_x = camera:getMouseX()
 		mouse_y = camera:getMouseY()
 		self:setDestination(mouse_x, mouse_y)
-		--Animation.new(mouse_x, mouse_y, love.graphics.newImage("sprites/move_indicator"))
+		Animation.new(love.graphics.newImage("sprites/move_indicator.png"), mouse_x, mouse_y, 2, 2, "pauseAtEnd")
 		client:send("clientDestination", {id = self.id, x = mouse_x, y = mouse_y})
 	end
 	if mouse == 1 then
@@ -84,9 +100,12 @@ function Player:mousepressed(mouse)
 			mouse_x = camera:getMouseX()
 			mouse_y = camera:getMouseY()
 			self:setDestinationAngle(mouse_x, mouse_y)
+			self:setDestination(nil, nil)
+			client:send("clientDestination", {id = self.id, x = nil, y = nil})
 			client:send("clientDestinationAngle", {id = self.id, x = mouse_x, y = mouse_y})
 			self.casting = function() self:shoot(mouse_x, mouse_y) end
 		end
+		love.mouse.setCursor()
 	end
 end
 
@@ -124,21 +143,26 @@ function Player:update(dt)
 			--turn clockwise (the shorter side) until that fact is no longer true
 			if (self.angle - self.destinationAngle) % (2*math.pi) < math.pi then
 				self.angle = (self.angle - self.turnRate * dt) % (2*math.pi)
-			else
-				if self.casting then
-					self.casting()
+				if (self.angle - self.destinationAngle) % (2*math.pi) >= math.pi then
+					if self.casting then
+						self.casting()
+					end
+					self.angle = self.destinationAngle
+					print(self.angle, self.destinationAngle)
+					self.turning = nil
 				end
-				self.turning = nil
 			end
 		else
 			--turn counterclockwise
 			if (self.destinationAngle - self.angle) % (2*math.pi) < math.pi then
 				self.angle = (self.angle + self.turnRate * dt) % (2*math.pi)
-			else
-				if self.casting then
-					self.casting()
+				if (self.destinationAngle - self.angle) % (2*math.pi) >= math.pi then
+					if self.casting then
+						self.casting()
+					end
+					self.angle = self.destinationAngle
+					self.turning = nil
 				end
-				self.turning = nil
 			end
 		end
 	end
@@ -187,30 +211,41 @@ end
 
 function Player:setDestination(x, y)
 	self.casting = nil
+
 	if self.destination.x ~= x and self.destination.y ~= y then
 		self.destination.x = x
 		self.destination.y = y
-		self.destinationAngle = math.atan2(y - self.y, x - self.x)
 
-		-- this expression gives the clockwise angle between a and b
+		if self.destination.x ~= nil and self.destination.y ~= nil then
+			self.destinationAngle = math.atan2(y - self.y, x - self.x)
 
-		if (self.angle - self.destinationAngle) % (2*math.pi) < math.pi then
-			self.turning = "clockwise"
-		else
-			self.turning = "counterclockwise"
+			-- this expression gives the clockwise angle between a and b
+			local angle_diff = self.angle - self.destinationAngle
+			-- for visual purposes, if angle is < 2 degrees don't bother changing it
+			--if math.abs(angle_diff) > math.pi * 2 / 180 then
+				if (angle_diff) % (2*math.pi) < math.pi then
+					self.turning = "clockwise"
+				else
+					self.turning = "counterclockwise"
+				end
+			--end
 		end
 	end
 end
 
 function Player:setDestinationAngle(x, y)
-	self.destinationAngle = math.atan2(y - self.y, x - self.x)
+	if x == nil and y == nil then
+		return
+	else
+		self.destinationAngle = math.atan2(y - self.y, x - self.x)
 
-	-- this expression gives the clockwise angle between a and b
-	if self.angle ~= self.destinationAngle then
-		if (self.angle - self.destinationAngle) % (2*math.pi) < math.pi then
-			self.turning = "clockwise"
-		else
-			self.turning = "counterclockwise"
+		-- this expression gives the clockwise angle between a and b
+		if self.angle ~= self.destinationAngle then
+			if (self.angle - self.destinationAngle) % (2*math.pi) < math.pi then
+				self.turning = "clockwise"
+			else
+				self.turning = "counterclockwise"
+			end
 		end
 	end
 end

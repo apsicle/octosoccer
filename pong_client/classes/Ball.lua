@@ -7,7 +7,7 @@ function Ball.new ()
 	ball.y = y or love.graphics.getHeight() / 2
 	ball.vx = 0
 	ball.vy = 0
-	ball.radius = 5;
+	ball.radius = 15;
 	ball.ax = 0;
 	ball.ay = 0;
 	ball.speed = 300

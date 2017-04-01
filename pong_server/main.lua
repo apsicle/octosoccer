@@ -118,6 +118,11 @@ function love.load()
         end
     end)
 
+    server:on("requestPass", function(data)
+        local id = data.id
+        server:sendToAll("requestPass", data)
+    end)
+
     server:on("shoot", function(data)
         -- acceleration is the frictional force, opposes motion
         local acceleration = -90
@@ -134,6 +139,7 @@ function love.load()
         ball.ay = y_factor * acceleration
         ball.t = t
         ball.owner = nil
+        players[data.id]:setDestination(nil, nil)
         players[data.id].hasBall = false
     end)
 
@@ -145,6 +151,12 @@ function love.load()
 
     server:on("select_team", function(data)
         table.insert(toDo, function() local id = data.id; if players[id] then players[id].team = data.team end end)
+    end)
+
+    server:on("stop", function(data)
+        local id = data.id
+        players[id]:setDestination(nil, nil)
+        players[id]:setDestinationAngle(nil, nil)
     end)
 end
 
