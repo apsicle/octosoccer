@@ -94,8 +94,7 @@ function Player:mousepressed(mouse)
 		self:setDestination(mouse_x, mouse_y)
 		Animation.new(love.graphics.newImage("sprites/move_indicator.png"), mouse_x, mouse_y, 2, 2, "pauseAtEnd")
 		client:send("clientDestination", {id = self.id, x = mouse_x, y = mouse_y})
-	end
-	if mouse == 1 then
+	elseif mouse == 1 then
 		if self.shooting == true then
 			mouse_x = camera:getMouseX()
 			mouse_y = camera:getMouseY()
@@ -106,7 +105,10 @@ function Player:mousepressed(mouse)
 			self.casting = function() self:shoot(mouse_x, mouse_y) end
 		end
 		love.mouse.setCursor()
+	else
+		return false
 	end
+	return true
 end
 
 function Player:update(dt)
@@ -148,7 +150,6 @@ function Player:update(dt)
 						self.casting()
 					end
 					self.angle = self.destinationAngle
-					print(self.angle, self.destinationAngle)
 					self.turning = nil
 				end
 			end

@@ -165,6 +165,15 @@ function in_range(num, i, j)
 	return i <= num and j >= num 
 end
 
+function in_rectangle(x1, y1, x2, y2, w, h)
+	if x1 <= x2 + w and x1 >= x2 then
+		if y1 <= y2 + h and y1 >= y2 then
+			return true
+		end
+	end
+	return false
+end
+
 function map(func, array)
   local new_array = {}
   for i,v in ipairs(array) do

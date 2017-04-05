@@ -39,6 +39,18 @@ function love.load()
     margin_height = global_height * .02
     game_started = false
 
+    -- this part needs to be set dynamically, can probaby be done in lua
+    -- This is the client that connects the new game server to the meta game server
+    local ip = "192.168.0.103"
+    local port = 22123
+    serverClient = sock.newClient(ip, port)
+    serverClient:setSerialization(bitser.dumps, bitser.loads)
+    serverClient:connect()
+    serverClient:on("connect", function(data, client)
+        print("connected!")
+        serverClient:send("newServer", {ip = ip, port = port})
+    end)
+
     -- queue for functions like team switching that get down when the round ends
     toDo = {}
     
@@ -52,8 +64,8 @@ function love.load()
     }
     round_paused = Pause.new(3, roundStart)
     -- %% Server on any IP, port 22122, with 2 max peers
-    --server = sock.newServer("192.168.0.103", 22122, 2)
-    server = sock.newServer("192.168.1.11", 22122, 8)
+    server = sock.newServer("192.168.0.103", 22122, 8)
+    --server = sock.newServer("192.168.1.11", 22122, 8)
     -- %% Assign bitser as serialization and deserialization functions (dumps and loads respectively)
     server:setSerialization(bitser.dumps, bitser.loads)
 
@@ -162,6 +174,7 @@ end
 
 function love.update(dt)
     server:update()
+    serverClient:update()
 
     if round_paused.active then
         round_paused:update(dt)
