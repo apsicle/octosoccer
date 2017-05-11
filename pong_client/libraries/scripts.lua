@@ -166,8 +166,10 @@ function in_range(num, i, j)
 end
 
 function in_rectangle(x1, y1, x2, y2, w, h)
+	print(x1, y1, x2, y2, w, h)
 	if x1 <= x2 + w and x1 >= x2 then
 		if y1 <= y2 + h and y1 >= y2 then
+			print('ye')
 			return true
 		end
 	end

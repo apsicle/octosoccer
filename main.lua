@@ -8,7 +8,8 @@ function love.load()
 	-- victor's house
 	-- server = sock.newServer("192.168.1.11", 22123, 16)
 	-- ryan's house
-	server = sock.newServer("192.168.0.103", 22123, 16)
+	--server = sock.newServer("192.168.0.103", 22120, 32)
+	server = sock.newServer("10.0.20.182", 22120, 32)
 	server:setSerialization(bitser.dumps, bitser.loads)
 	myIP = server:getSocketAddress()
 	serverList = {}
@@ -46,6 +47,7 @@ function love.draw()
     for i, v in pairs(serverList) do
         local server = ("Server IP: %s - Port: %d"):format(v.ip, v.port)
         love.graphics.print(server, 5, 65 + 20 * count)
+        count = count + 1
     end
     love.graphics.print(("Number of clients (game client + servers): %d"):format(#clientList), 5, 45)
 end

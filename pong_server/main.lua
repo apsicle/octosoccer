@@ -10,14 +10,6 @@ menu = require "Menu"
 require "Camera"
 require "Pause"
 
--- Utility functions
-function isColliding(this, other)
-    return  this.x < other.x + other.w and
-            this.y < other.y + other.h and
-            this.x + this.w > other.x and
-            this.y + this.h > other.y
-end
-
 function love.load()
     -- how often an update is sent out
     tickRate = 1/60
@@ -41,15 +33,24 @@ function love.load()
 
     -- this part needs to be set dynamically, can probaby be done in lua
     -- This is the client that connects the new game server to the meta game server
-    local ip = "192.168.0.103"
-    local port = 22123
-    serverClient = sock.newClient(ip, port)
+    --local myIp = "192.168.0.103"
+    --local myPort = 22121
+    --local metaServerIp = "192.168.0.105"
+    --local metaServerPort = 22122
+    --*************SET META SERVER INFO**************
+    local myIp = "10.0.20.182"
+    local myPort = 22121
+    local metaServerIp = "10.0.20.182"
+    local metaServerPort = 22120
+
+    serverClient = sock.newClient(metaServerIp, metaServerPort)
     serverClient:setSerialization(bitser.dumps, bitser.loads)
-    serverClient:connect()
     serverClient:on("connect", function(data, client)
         print("connected!")
-        serverClient:send("newServer", {ip = ip, port = port})
+        serverClient:send("newServer", {ip = myIp, port = myPort})
     end)
+    serverClient:connect()
+
 
     -- queue for functions like team switching that get down when the round ends
     toDo = {}
@@ -63,8 +64,8 @@ function love.load()
     players = {
     }
     round_paused = Pause.new(3, roundStart)
-    -- %% Server on any IP, port 22122, with 2 max peers
-    server = sock.newServer("192.168.0.103", 22122, 8)
+    -- %% Server on any IP, port 22122, with 8 max peers
+    server = sock.newServer(myIp, myPort, 8)
     --server = sock.newServer("192.168.1.11", 22122, 8)
     -- %% Assign bitser as serialization and deserialization functions (dumps and loads respectively)
     server:setSerialization(bitser.dumps, bitser.loads)
@@ -201,7 +202,6 @@ function love.update(dt)
             tick = 0
 
             for i, player in pairs(players) do
-                print(player.name)
                 server:sendToAll("stateUpdate", {time = time, index = player.id, eventType = "playerState", playerState = player:getState()})
             end
 

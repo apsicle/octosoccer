@@ -24,7 +24,7 @@ function Player.new (x, y, collision_group, active)
 	player.state = "standing"
 	player.active = active
 	player.isPlayer = true
-	player.turnRate = (4*math.pi)
+	player.turnRate = (5.32*math.pi)
 	player.shooting = false
 	player.hasBall = false
 	player.collision_group = 1

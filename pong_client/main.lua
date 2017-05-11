@@ -18,20 +18,11 @@ require "classes/Animation"
 function love.load()
 
     -- read in the options from config.txt or create it (changing options saves to config.txt)
-    options = {}
-    if love.filesystem.exists("config.txt") then
-        for line in io.lines("config.txt") do
-            print(line)
-            local split_result = Split(line, ":", 2)
-            local option_title = split_result[1]
-            local option_setting = split_result[2]
-            options[option_title] = option_setting
-        end
+    if love.filesystem.exists("config.lua") then
+        require("config")
     else
-        config_file = io.open("config.txt", "w")
-        config_file:write("debug:false\n", "windowed:true\n", "player_name:Player\n")
-        config_file:close()
         options = {debug = false, windowed = false, player_name = "Player"}
+        write_options()
     end
 
     -- create the window
@@ -57,7 +48,9 @@ function love.load()
     chatLog = ChatLog.new()
     serverList = {}
     --metaServerClient = sock.newClient("192.168.1.11", 22122)
-    metaServerClient = sock.newClient("192.168.0.103", 22123)
+    --metaServerClient = sock.newClient("192.168.0.105", 22122)
+    metaServerClient = sock.newClient("10.0.20.182", 22120)
+
     metaServerClient:setSerialization(bitser.dumps, bitser.loads)
     metaServerClient:on("serverList", function(data)
         serverList = data
@@ -65,6 +58,7 @@ function love.load()
     metaServerClient:connect()
 
     -- Visuals Setup
+    font = love.graphics.newFont(14)
     kick_cursor = love.mouse.newCursor("sprites/kick_cursor.png", 16, 16)
     splash = love.graphics.newImage("sprites/splash.png")
     field = love.graphics.newImage("sprites/field.png")
@@ -391,9 +385,14 @@ function draw_field()
 end
 
 function write_options()
-    local config_file = io.open('config.txt', 'w')
+    local config_file = io.open('config.lua', 'w')
+    config_file:write("options = {}\n")
     for i, v in pairs(options) do
-        config_file:write(("%s:%s\n"):format(i,v))
+        if type(v) == "string" then
+            config_file:write(("options.%s=\'%s\'\n"):format(i,v))
+        else
+            config_file:write(("options.%s=%s\n"):format(i,v))
+        end
     end
     config_file:close()
 end
@@ -410,6 +409,7 @@ function createClient(ip, port)
 
     client:on("connect", function()
         connected = true
+        print("connected")
     end)
 
     client:on("centerCamera", function(obj)
@@ -533,6 +533,6 @@ function createClient(ip, port)
         scores = data
     end)
 
-    client:connect()
+    --client:connect()
     return client
 end

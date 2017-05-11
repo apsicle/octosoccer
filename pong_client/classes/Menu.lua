@@ -156,55 +156,49 @@ function Screen(parent, screenType)
 			local width = window_width / 2
 			local x = (window_width - width) / 2
 			local y = (window_height - height) / 2
+			local disp_x = 20
+			local disp_y = 50
+			local disp_highlight_x = 15
+			local disp_highlight_y = 15
 			local count = 0
 
-			-- draw the box containing the listings
-			love.graphics.setColor(128, 128, 128, 128)
+			-- Draw the outer server box
+			love.graphics.setColor(71, 132, 90)
+			love.graphics.rectangle("fill", x - disp_x, y - disp_y, width + disp_x * 2, height + disp_y * 2)
+			-- Draw the inner server box
+			love.graphics.setColor(33, 68, 44)
 			love.graphics.rectangle("fill", x, y, width, height)
 
-			-- draw the listings starting at the top left corner of the server box.
+			-- Print the listings starting at the top left corner of the server box.
 			love.graphics.setColor(255, 255, 255)
-		    for i, v in ipairs(serverList) do
+		    for i, v in pairs(serverList) do
 		        local server = ("Server IP: %s - Port: %d"):format(v.ip, v.port)
-		        love.graphics.print(server, x + 15, y + 15 + count * 20)
-		        if self.selected and self.selected == (count + 1) then
+		        love.graphics.print(server, x + disp_highlight_x, y + disp_highlight_y + count * font:getHeight())
+		        if self.selected == count + 1 then
 		        	-- draw the box highlighting the current selection
 		        	love.graphics.setColor(255, 255, 255, 128)
-		        	love.graphics.rectangle("fill", x + 15, y + 15 + count * 20, width, 20)
+		        	love.graphics.rectangle("fill", x + disp_highlight_x, y + disp_highlight_y + 
+		        		count * font:getHeight(), width - disp_highlight_x * 2, font:getHeight())
 		        	love.graphics.setColor(255, 255, 255)
+
+		        	-- set self.selectedServer to the right server value
+		        	self.selectedServer = v
 		        end
+		        count = count + 1
 		    end
 		    if #serverList == 0 then
-		    	love.graphics.print("No games found", x + 15, y + 15 + count * 20)
+		    	love.graphics.print("No games found", x + 15, y + 15 + count * font:getHeight())
 		    end
 
 		    -- draw the buttons for "Refresh" and "Connect"
-		    love.graphics.setColor(128, 128, 128, 192)
-		    love.graphics.rectangle("fill", x + 100, y + height - 50, 150, 50)
-		    love.graphics.rectangle("fill", x + width - 250, y + height - 50, 150, 50)
+		    love.graphics.setColor(56, 101, 70)
+		    love.graphics.rectangle("fill", x + 100, y + height + 5, 125, 40)
+		    love.graphics.rectangle("fill", x + width - 250, y + height + 5, 125, 40)
 		    love.graphics.setColor(255, 255, 255, 192)
-		    love.graphics.print("Refresh", x + 115, y + height - 35)
-		    love.graphics.print("Connect", x + width - 235, y + height - 35)
-		end
-		mousepressed = function(self, x, y, mouse)
-			local height = window_height / 2
-			local width = window_width / 2
-			-- this is the topleft corner of the server list box
-			local x2 = (window_width - width) / 2
-			local y2 = (window_height - height) / 2
-			if mouse == 1 then
-				local count = 0
-				for i, v in ipairs(serverList) do
-					if in_rectangle(x, y, x2, y2 + count * 20, 100, 20) then
-						self.selectedServer = v
-						self.selected = count + 1
-						count = count + 1
-						return true
-					end
-				end
-				--if in_rectangle(x, y, )
-			end
-			return true
+		    love.graphics.rectangle("line", x + 100, y + height + 5, 125, 40)
+		    love.graphics.rectangle("line", x + width - 250, y + height + 5, 125, 40)
+		    love.graphics.print("Refresh (R)", x + 115, y + height + 15)
+		    love.graphics.print("Connect (Enter)", x + width - 235, y + height + 15)
 		end
 
 		keypressed = function(self, key)
@@ -215,20 +209,25 @@ function Screen(parent, screenType)
 						self.selected = self.selected - 1
 						self.animOffset = self.animOffset + 1
 					else
-						self.selected = #self.items
-						self.animOffset = self.animOffset - (#self.items-1)
+						self.selected = #serverList
 					end
 				elseif key == 'down' then
-					if self.selected < #self.items then
+					if self.selected < #serverList then
 						self.selected = self.selected + 1
-						self.animOffset = self.animOffset - 1
 					else
 						self.selected = 1
-						self.animOffset = self.animOffset + (#self.items-1)
 					end
+				elseif key == 'r' then
+					metaServerClient:send("requestServerList")
 				elseif key == 'return' then
-					if self.items[self.selected].action then
-						self.items[self.selected]:action()
+					if self.selectedServer then
+						if _G.client then
+							_G.client:disconnect()
+						end
+						_G.client = createClient(self.selectedServer.ip, self.selectedServer.port)
+						_G.client:connect()
+						active_menu = main_menu
+						in_menu = false
 					end
 				elseif key == 'escape' then
 					if active_menu == main_menu then
